@@ -84,7 +84,7 @@ All dynamic parameters are **risk-neutral**: they are whatever makes model price
 
 ![Vasicek zero curves as each parameter changes: the short rate flips the curve between upward and inverted, theta lifts the long end, kappa sets how far the short rate's influence reaches, sigma bends the long end down](figures/vasicek_shapes-light.png)
 
-In Vasicek, $dr = \kappa(\theta - r)dt + \sigmadW$, and the zero-coupon yield for maturity τ is
+In Vasicek, $dr = \kappa(\theta - r)dt + \sigma dW$, and the zero-coupon yield for maturity τ is
 
 $$
 y(\tau) = y_\infty + (r - y_\infty)\,\frac{B(\tau)}{\tau} + \frac{\sigma^2}{4\kappa}\,\frac{B(\tau)^2}{\tau}, \qquad B(\tau) = \frac{1 - e^{-\kappa\tau}}{\kappa}, \qquad y_\infty = \theta - \frac{\sigma^2}{2\kappa^2}.
