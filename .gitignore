@@ -1,0 +1,25 @@
+# OS / Python
+.DS_Store
+**/.venv/
+__pycache__/
+*.pyc
+
+# Licensed WRDS data (CRSP, TAQ) and anything built from it at bond/quote level: not redistributable
+**/data/raw/crsp_treasuries/
+**/data/raw/taq_etf/
+**/data/raw/frb_h15/
+**/data/processed/*.pkl
+
+# Saved web pages and course handouts
+**/data/raw/events/*.html
+**/IndependentProjectTopics*.pdf
+
+# LaTeX build files
+*.aux
+*.log
+*.out
+*.bbl
+*.blg
+*.synctex.gz
+*.fdb_latexmk
+*.fls

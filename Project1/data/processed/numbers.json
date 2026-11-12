@@ -1,0 +1,135 @@
+{
+ "episodes": 9,
+ "episode_2022": {
+  "months": 30,
+  "deepest_bp": -173
+ },
+ "oos": {
+  "Vasicek": {
+   "in_sample_2016_26": 53.6,
+   "frozen_2016_26": 80.6,
+   "frozen_inverted_2022_25": 118.5,
+   "in_sample_inverted_2022_25": 96.0,
+   "full_median": 49.8,
+   "full_inverted": 81.8,
+   "full_normal": 44.8
+  },
+  "G2++": {
+   "in_sample_2016_26": 10.9,
+   "frozen_2016_26": 13.4,
+   "frozen_inverted_2022_25": 11.1,
+   "in_sample_inverted_2022_25": 11.7,
+   "full_median": 15.2,
+   "full_inverted": 12.4,
+   "full_normal": 15.5
+  },
+  "Dynamic NS": {
+   "in_sample_2016_26": 7.8,
+   "frozen_2016_26": 8.7,
+   "frozen_inverted_2022_25": 7.7,
+   "in_sample_inverted_2022_25": 7.1,
+   "full_median": 8.8,
+   "full_inverted": 8.4,
+   "full_normal": 8.9
+  }
+ },
+ "halves": {
+  "Vasicek": {
+   "early": {
+    "kappa": 0.0405,
+    "theta": 0.1832,
+    "sigma": 0.0225
+   },
+   "late": {
+    "kappa": 0.0644,
+    "theta": 0.0993,
+    "sigma": 0.0225
+   },
+   "late_months_own": 44.7,
+   "late_months_other": 63.0,
+   "early_months_own": 46.8,
+   "early_months_other": 71.6
+  },
+  "G2++": {
+   "early": {
+    "a1": 0.0191,
+    "a2": 0.5771,
+    "s1": 0.0126,
+    "s2": 0.1,
+    "rho": 0.503,
+    "delta": 0.25
+   },
+   "late": {
+    "a1": 0.0294,
+    "a2": 0.2808,
+    "s1": 0.0197,
+    "s2": 0.0135,
+    "rho": -0.99,
+    "delta": 0.1459
+   },
+   "late_months_own": 13.9,
+   "late_months_other": 18.7,
+   "early_months_own": 12.9,
+   "early_months_other": 20.0
+  }
+ },
+ "vasicek_shared_5dates": {
+  "kappa": 0.0816,
+  "theta": 0.044,
+  "sigma": 0.0001
+ },
+ "g2_shared_5dates": {
+  "a1": 0.007,
+  "a2": 0.4025,
+  "s1": 0.0159,
+  "s2": 0.0573,
+  "rho": -0.99,
+  "delta": 0.25
+ },
+ "g2_shared_5dates_slope_pct": {
+  "Dec 2006": 1.36,
+  "Jun 2021": -1.06,
+  "Jun 2023": 3.29,
+  "Sep 2024": 1.46,
+  "Jun 2026": -0.02
+ },
+ "pq_params": {
+  "kappaQ": [
+   0.0245,
+   0.3066
+  ],
+  "kappaP": [
+   0.1558,
+   0.1783
+  ],
+  "halflifeQ": [
+   28.3468,
+   2.2606
+  ],
+  "halflifeP": [
+   4.4496,
+   3.8871
+  ],
+  "volQ": [
+   0.0159,
+   0.0296
+  ],
+  "volP": [
+   0.0136,
+   0.0145
+  ],
+  "corrQ": -0.99,
+  "corrP": -0.8455,
+  "vol_rQ": 0.0141,
+  "vol_rP": 0.0079,
+  "longrun_rP": 0.0203,
+  "longrun_level": 0.0333
+ },
+ "bonds_per_date": {
+  "Dec 2006": 151,
+  "Jun 2021": 307,
+  "Jun 2023": 326,
+  "Sep 2024": 329,
+  "Jun 2026": 339
+ }
+}
