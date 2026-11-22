@@ -1,0 +1,278 @@
+{
+  "asset": "ind_manuf",
+  "model": "gjr_t",
+  "kind": "gjr",
+  "dist": "t",
+  "gap_variant": "scale",
+  "params": {
+    "mu": 0.0005439947062220047,
+    "alpha": 0.038202996973797365,
+    "gamma": 0.0918106943425135,
+    "beta": 0.9040424964545561,
+    "nu": 6.5408228974518865,
+    "omega": 1.289788034544622e-06
+  },
+  "se": {
+    "mu": 4.61336982966061e-05,
+    "omega": 1.5493414206019515e-07,
+    "alpha": 0.0033978603618500633,
+    "gamma": 0.007733975027557836,
+    "beta": 0.0059181715805640585,
+    "nu": 0.2756040132479287
+  },
+  "param_order": [
+    "mu",
+    "omega",
+    "alpha",
+    "gamma",
+    "beta",
+    "nu"
+  ],
+  "estimation_window": {
+    "start": "1926-07-01",
+    "end": "2026-09-30",
+    "n_obs": 26338,
+    "fallback_triggered": false
+  },
+  "fallback": {
+    "triggered": false,
+    "reasons": [],
+    "start_used": null,
+    "persistence_full": 0.9881508405996102,
+    "half_life_full": 58.150320472465424,
+    "draw_valid_share_full": 1.0,
+    "converged_full": true,
+    "rule": {
+      "max_persistence": 0.998,
+      "min_draw_valid_share": 0.7
+    },
+    "fallback_start": "1990-01-01"
+  },
+  "n_obs": 26338,
+  "loglik": 86866.74127360227,
+  "aic": -173721.48254720453,
+  "bic": -173672.4099389509,
+  "persistence": 0.9881508405996102,
+  "half_life_days": 58.150320472465424,
+  "uncond_vol_ann": 0.16562110249124382,
+  "backcast": 4.281695647037222e-05,
+  "premium": {
+    "mode": "constant_arith",
+    "raw_annual": 0.08382937201002355,
+    "se_annual": 0.018566016219734062,
+    "years": 104.51587301587301,
+    "shrink_to": 0.0,
+    "shrink_weight": 0.5,
+    "annual_excess_used": 0.041914686005011775,
+    "source": "estimate (shrunk)",
+    "t_stat_raw": 4.515205147829194,
+    "resolved": {
+      "mode": "constant_arith",
+      "mu_e_daily": 0.00016632811906750706
+    },
+    "all_modes_resolved": {
+      "constant_arith": {
+        "mode": "constant_arith",
+        "mu_e_daily": 0.00016632811906750706
+      },
+      "prop_variance": {
+        "mode": "prop_variance",
+        "mu_e_daily": 0.00016632811906750706,
+        "lambda": 1.155371376139889
+      },
+      "constant_sharpe": {
+        "mode": "constant_sharpe",
+        "mu_e_daily": 0.00016632811906750706,
+        "S": 0.016219457353009215
+      }
+    }
+  },
+  "rate": {
+    "params": {
+      "mode": "vasicek",
+      "kappa": 0.338420362945197,
+      "theta": 0.04297497852054339,
+      "s": 0.025668215642164677,
+      "rho": -0.1214158301595127,
+      "floor_at_zero": false
+    },
+    "fit": {
+      "kappa": 0.338420362945197,
+      "theta": 0.04297497852054339,
+      "s": 0.025668215642164677,
+      "dt_fit": 0.08333333333333333,
+      "n_months": 872,
+      "start": "1954-01",
+      "end": "2026-09",
+      "se_kappa": 0.09513762251932548,
+      "mean_rate": 0.04197150916292081,
+      "share_negative_months": 0.0,
+      "n_negative_months": 0,
+      "random_walk_fallback": false,
+      "half_life_years": 2.0481840233478854,
+      "stationary_sd": 0.031199845104870335,
+      "rho": -0.1214158301595127,
+      "rho_same_month_label": -0.1214158301595127,
+      "rho_prev_month": -0.019194711869929208,
+      "se_approx": 0.03338420041194169,
+      "alignment": "same_month"
+    }
+  },
+  "innovations": "t",
+  "fhs_residuals_file": "results/model/zhat_ind_manuf.npy",
+  "data_sha256": {
+    "F-F_Research_Data_Factors_daily.csv": "3f7910502dd6f188748210e5145d95642de1d8cff56c2cf0fa85985299610ff0",
+    "F-F_Research_Data_Factors.csv": "a3894d74d553cab812eabbe706bdbf443c97eb20b24b05e3e5f3ce47e46b90bb",
+    "10_Industry_Portfolios_Daily.csv": "01cfe3d5e54f6ddfcc3dc84fb793f10f6b0218fe59f780969f4dca84e72e823e"
+  },
+  "config_model": {
+    "seed": 20261120,
+    "results_dir": "results/model",
+    "report_dir": "reports/model",
+    "base": "gjr_t",
+    "comparison": [
+      "garch_n",
+      "garch_t",
+      "gjr_t",
+      "egarch_t"
+    ],
+    "scale": 100,
+    "innovations": "t",
+    "premium": {
+      "mode": "constant_arith",
+      "annual_excess": "estimate",
+      "shrink_to": 0.0,
+      "shrink_weight": 0.5
+    },
+    "gaps": {
+      "flag_calendar_days": 4,
+      "variants": [
+        "none",
+        "scale"
+      ],
+      "base_variant": "scale"
+    },
+    "expanding": {
+      "min_obs": 2520,
+      "refit_every": 252
+    },
+    "rolling": {
+      "window": 5040,
+      "step": 252
+    },
+    "subsamples": [
+      [
+        "pre-1963",
+        null,
+        "1962-12-31"
+      ],
+      [
+        "1963-1999",
+        "1963-01-01",
+        "1999-12-31"
+      ],
+      [
+        "2000-end",
+        "2000-01-01",
+        null
+      ]
+    ],
+    "robustness_start_dates": [
+      "1952-07-01",
+      "1963-07-01",
+      "1990-01-01"
+    ],
+    "n_param_draws": 200,
+    "nu_min": 2.5
+  },
+  "generated": "2026-11-21T13:53:58",
+  "alternative_models": {
+    "garch_n": {
+      "model": "garch_n",
+      "kind": "garch",
+      "dist": "normal",
+      "gap_variant": "scale",
+      "params": {
+        "mu": 0.0005002197109117097,
+        "alpha": 0.08983943857565295,
+        "gamma": 0.0,
+        "beta": 0.8992293610933753,
+        "nu": null,
+        "omega": 1.483394825397238e-06
+      },
+      "se": {
+        "mu": 6.632614918194989e-05,
+        "omega": 2.4347408310933966e-07,
+        "alpha": 0.010266341893007782,
+        "beta": 0.01040361864052917
+      },
+      "backcast": 4.281695647037222e-05,
+      "n_obs": 26338,
+      "loglik": 85895.11009873687,
+      "bic": -171749.50512530465,
+      "converged": true,
+      "persistence": 0.9890687996690282,
+      "half_life_days": 63.06277026099745,
+      "uncond_vol_ann": 0.18492461512623762
+    },
+    "garch_t": {
+      "model": "garch_t",
+      "kind": "garch",
+      "dist": "t",
+      "gap_variant": "scale",
+      "params": {
+        "mu": 0.0006557636243359368,
+        "alpha": 0.08740379094908346,
+        "gamma": 0.0,
+        "beta": 0.9065077103979406,
+        "nu": 6.12042515281268,
+        "omega": 1.072288437704585e-06
+      },
+      "se": {
+        "mu": 4.592220666724321e-05,
+        "omega": 1.3850967672471872e-07,
+        "alpha": 0.0054856957776281265,
+        "beta": 0.005732386433355971,
+        "nu": 0.2380144624466116
+      },
+      "backcast": 4.281695647037222e-05,
+      "n_obs": 26338,
+      "loglik": 86722.25390398077,
+      "bic": -173393.6139677502,
+      "converged": true,
+      "persistence": 0.9939115013470241,
+      "half_life_days": 113.49841058179075,
+      "uncond_vol_ann": 0.2106691654295684
+    },
+    "egarch_t": {
+      "model": "egarch_t",
+      "kind": "egarch",
+      "dist": "t",
+      "gap_variant": "scale",
+      "params": {
+        "mu": 0.0005347233811519827,
+        "alpha": 0.15094128273601698,
+        "gamma": -0.06550224558534622,
+        "beta": 0.9874264528735949,
+        "nu": 6.420995644675853,
+        "omega": -0.11308649955900152
+      },
+      "se": {
+        "mu": 4.564112362870407e-05,
+        "omega": 0.013165055925450172,
+        "alpha": 0.007549627811413254,
+        "gamma": 0.00420020799149876,
+        "beta": 0.0014213798988363172,
+        "nu": 0.265664910244522
+      },
+      "backcast": -10.058576354620483,
+      "n_obs": 26338,
+      "loglik": 86900.14774834776,
+      "bic": -173739.2228884419,
+      "converged": true,
+      "persistence": 0.9874264528735949,
+      "half_life_days": 54.78011292449309,
+      "uncond_vol_ann": 0.136214352106216
+    }
+  }
+}

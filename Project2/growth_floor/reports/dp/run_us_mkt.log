@@ -1,0 +1,68 @@
+[21:42:58] solve us_mkt: 8 lam values (8 to do), y 120 x h 40 x z 60 x phi 41, tau_max 504
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/joblib/externals/loky/backend/resource_tracker.py:314: UserWarning: resource_tracker: There appear to be 8 leaked semlock objects to clean up at shutdown
+  warnings.warn(
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/joblib/externals/loky/backend/resource_tracker.py:314: UserWarning: resource_tracker: There appear to be 2 leaked folder objects to clean up at shutdown
+  warnings.warn(
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/joblib/externals/loky/backend/resource_tracker.py:330: UserWarning: resource_tracker: /var/folders/xp/9c4z33p94wv5p1xfvvp7z7mw0000gn/T/joblib_memmapping_folder_9105_577fcaf8dc854f3cab82a87d09421ffb_9de16cd26c174f9993f77cef321732ea: FileNotFoundError(2, 'No such file or directory')
+  warnings.warn(f"resource_tracker: {name}: {e!r}")
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/joblib/externals/loky/backend/resource_tracker.py:330: UserWarning: resource_tracker: /var/folders/xp/9c4z33p94wv5p1xfvvp7z7mw0000gn/T/joblib_memmapping_folder_9105_577fcaf8dc854f3cab82a87d09421ffb_d45c9437caaf432080820e485d88cc87: FileNotFoundError(2, 'No such file or directory')
+  warnings.warn(f"resource_tracker: {name}: {e!r}")
+[22:55:23]   solves done in 3464s wall; per-solve seconds [1293, 1544, 921, 983, 1193, 833, 1157, 955]
+[22:55:46] calibrate us_mkt: robust set ['base', 'dgp_garch_t', 'fhs', 'param_unc', 'persistent'], 20000 paths, tuning seed 808879553790532705
+[22:55:46]   MC grid calib_us_mkt: 25 runs x 2 horizons x 8 lam rows at 20000 paths
+[23:05:58]   done in 611s wall (sum of task seconds 1168)
+[23:06:06]   lam* table written: [('calm', 252, 0.00136, 'grid'), ('calm', 504, 0.00261, 'grid'), ('normal', 252, 0.00136, 'grid'), ('normal', 504, 0.00261, 'grid'), ('elevated', 252, 0.000707, 'grid'), ('elevated', 504, 0.00261, 'grid'), ('crisis', 252, 0.000707, 'grid'), ('crisis', 504, 0.00136, 'grid'), ('extreme', 252, 0.000368, 'grid'), ('extreme', 504, 0.00136, 'grid')]
+[23:06:20] V1 pass=True max dev 0.0108
+[23:06:21] V2 pass=False phi near y=1 at lam_max {21: 0.18187500000000004, 126: 0.22208333333333333, 252: 0.3164583333333333, 504: 0.37562500000000004}
+[23:06:21] V3 [(0.0, 0, 0, 0), (0.0001, 0, 331, 0), (0.000192, 0, 439, 5), (0.000368, 0, 599, 10), (0.000707, 0, 888, 24), (0.00136, 0, 947, 29), (0.00261, 0, 1376, 42), (0.005, 0, 1612, 64)]
+[23:06:21]   MC grid v5_rateconst_us_mkt: 5 runs x 2 horizons x 8 lam rows at 20000 paths
+[23:08:42]   done in 142s wall (sum of task seconds 229)
+[23:08:43] V5 pass(rate_const)=False (46/80 fail), pass(base)=False (49/80 fail)
+[23:08:48] solve us_mkt_y2: 3 lam values (3 to do), y 239 x h 40 x z 60 x phi 41, tau_max 504
+=== Sat 21 Nov 2026 23:10:46 EST stopped after V5 (policy resolution near floor); see DECISIONS
+=== Sat 21 Nov 2026 23:30:04 EST relaunch: banded y grid + PCHIP in y and h
+[23:30:11] solve us_mkt: 8 lam values (8 to do), y 120 x h 40 x z 60 x phi 41, tau_max 504
+[01:00:26]   solves done in 5415s wall; per-solve seconds [1080, 1368, 1505, 1470, 1336, 1338, 1276, 1206]
+[01:00:51] calibrate us_mkt: robust set ['base', 'dgp_garch_t', 'fhs', 'param_unc', 'persistent'], 20000 paths, tuning seed 808879553790532705
+[01:00:51]   MC grid calib_us_mkt: 25 runs x 2 horizons x 8 lam rows at 20000 paths
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/joblib/externals/loky/backend/resource_tracker.py:314: UserWarning: resource_tracker: There appear to be 8 leaked semlock objects to clean up at shutdown
+  warnings.warn(
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/joblib/externals/loky/backend/resource_tracker.py:314: UserWarning: resource_tracker: There appear to be 2 leaked folder objects to clean up at shutdown
+  warnings.warn(
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/joblib/externals/loky/backend/resource_tracker.py:330: UserWarning: resource_tracker: /var/folders/xp/9c4z33p94wv5p1xfvvp7z7mw0000gn/T/joblib_memmapping_folder_12360_ba72c13bc2e742e7ae6c10f07997765f_332d9c3030fc4154ba32c00d830e76fb: FileNotFoundError(2, 'No such file or directory')
+  warnings.warn(f"resource_tracker: {name}: {e!r}")
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/joblib/externals/loky/backend/resource_tracker.py:330: UserWarning: resource_tracker: /var/folders/xp/9c4z33p94wv5p1xfvvp7z7mw0000gn/T/joblib_memmapping_folder_12360_ba72c13bc2e742e7ae6c10f07997765f_835e236d0dd54eb4a007bb31c2373742: FileNotFoundError(2, 'No such file or directory')
+  warnings.warn(f"resource_tracker: {name}: {e!r}")
+[01:12:18]   done in 687s wall (sum of task seconds 1310)
+[01:12:28]   lam* table written: [('calm', 252, 0.000707, 'grid'), ('calm', 504, 0.00136, 'grid'), ('normal', 252, 0.000707, 'grid'), ('normal', 504, 0.00261, 'grid'), ('elevated', 252, 0.000707, 'grid'), ('elevated', 504, 0.00136, 'grid'), ('crisis', 252, 0.000368, 'grid'), ('crisis', 504, 0.00136, 'grid'), ('extreme', 252, 0.000192, 'grid'), ('extreme', 504, 0.00136, 'grid')]
+[01:12:42] V1 pass=True max dev 0.0108
+[01:12:42] V2 pass=False phi near y=1 at lam_max {21: 0.17902777777777779, 126: 0.28055555555555556, 252: 0.3325694444444444, 504: 0.3792361111111111}
+[01:12:42] V3 [(0.0, 0, 0, 0), (0.0001, 0, 487, 2), (0.000192, 0, 688, 13), (0.000368, 0, 964, 17), (0.000707, 0, 1258, 27), (0.00136, 0, 1546, 28), (0.00261, 0, 1805, 37), (0.005, 0, 2081, 45)]
+[01:12:42]   MC grid v5_rateconst_us_mkt: 5 runs x 2 horizons x 8 lam rows at 20000 paths
+[01:14:54]   done in 132s wall (sum of task seconds 209)
+[01:14:55] V5 pass(rate_const)=True (0/80 fail), pass(base)=False (16/80 fail)
+[01:15:01] evaluate us_mkt: 45 runs (0 scenarios cached) at 50000 paths, eval seed 22189377091890336
+[01:16:40]   base: 99s elapsed
+[01:18:02]   dgp_garch_t: 180s elapsed
+[01:19:17]   fhs: 256s elapsed
+[01:20:39]   param_unc: 338s elapsed
+[01:21:56]   persistent: 415s elapsed
+[01:23:13]   fat_tails: 492s elapsed
+[01:24:32]   jump: 571s elapsed
+[01:25:49]   mu_low: 648s elapsed
+[01:27:08]   mu_zero: 727s elapsed
+[01:27:15] V6 (UNPAIRED quick run): 4/4 comparable cells with DP CE >= other; pass=True
+[01:27:25] figures -> growth_floor_dp/reports/dp
+[01:27:31] tables -> growth_floor_dp/reports/dp/tables_us_mkt.md
+[01:27:38] solve us_mkt_y2: 4 lam values (1 to do), y 239 x h 40 x z 60 x phi 41, tau_max 504
+=== Sun 22 Nov 2026 01:29:15 EST stopped V4: y2 cache held 3 stale old-grid solves from orphaned workers; moved to old_uniform_y/orphan_y2; added grid check
+[01:29:35] solve us_mkt_y2: 4 lam values (4 to do), y 239 x h 40 x z 60 x phi 41, tau_max 504
+[02:47:05]   solves done in 4650s wall; per-solve seconds [2486, 2484, 2127, 2131]
+[02:48:32] V4 pass=True: [('normal', 252, -0.22, -0.035), ('normal', 504, 0.13, 0.03), ('crisis', 252, -0.15, -0.075), ('crisis', 504, -0.11, -0.035)]
+[02:48:37] tables -> growth_floor_dp/reports/dp/tables_us_mkt.md
+US_MKT PIPELINE DONE
+[02:49:19]   MC grid v6frontier_us_mkt: 5 runs x 2 horizons x 8 lam rows at 50000 paths
+[02:54:01]   done in 282s wall (sum of task seconds 467)
+[02:54:01] V6 frontier: 32/32 comparable of 40 with DP CE >= other; pass=True
+[02:54:01] V6 (paired): 0/0 comparable cells with DP CE >= other; pass=False
+[02:54:06] tables -> growth_floor_dp/reports/dp/tables_us_mkt.md

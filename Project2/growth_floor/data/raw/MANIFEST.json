@@ -1,0 +1,78 @@
+{
+  "note": "download_date defaults to the file mtime. Overwrite it with the real download date and set download_date_source to 'user'; it is preserved while the sha256 is unchanged.",
+  "generated": "2026-11-20T19:16:43",
+  "files": [
+    {
+      "file": "F-F_Research_Data_Factors_daily.csv",
+      "sha256": "3f7910502dd6f188748210e5145d95642de1d8cff56c2cf0fa85985299610ff0",
+      "size_bytes": 1211963,
+      "download_date": "2026-11-20",
+      "download_date_source": "user",
+      "sections": [
+        {
+          "title": "section_0",
+          "frequency": "daily",
+          "rows": 26338,
+          "first_date": "1926-07-01",
+          "last_date": "2026-09-30"
+        }
+      ],
+      "first_date": "1926-07-01",
+      "last_date": "2026-09-30",
+      "source_id": "ff3_daily"
+    },
+    {
+      "file": "F-F_Research_Data_Factors.csv",
+      "sha256": "a3894d74d553cab812eabbe706bdbf443c97eb20b24b05e3e5f3ce47e46b90bb",
+      "size_bytes": 52533,
+      "download_date": "2026-11-20",
+      "download_date_source": "user",
+      "sections": [
+        {
+          "title": "section_0",
+          "frequency": "monthly",
+          "rows": 1203,
+          "first_date": "1926-07-31",
+          "last_date": "2026-09-30"
+        },
+        {
+          "title": "Annual Factors: January-December",
+          "frequency": "annual",
+          "rows": 99,
+          "first_date": "1927-12-31",
+          "last_date": "2025-12-31"
+        }
+      ],
+      "first_date": "1926-07-31",
+      "last_date": "2026-09-30",
+      "source_id": "ff3_monthly"
+    },
+    {
+      "file": "10_Industry_Portfolios_Daily.csv",
+      "sha256": "01cfe3d5e54f6ddfcc3dc84fb793f10f6b0218fe59f780969f4dca84e72e823e",
+      "size_bytes": 4741344,
+      "download_date": "2026-11-20",
+      "download_date_source": "user",
+      "sections": [
+        {
+          "title": "Average Value Weighted Returns -- Daily",
+          "frequency": "daily",
+          "rows": 26338,
+          "first_date": "1926-07-01",
+          "last_date": "2026-09-30"
+        },
+        {
+          "title": "Average Equal Weighted Returns -- Daily",
+          "frequency": "daily",
+          "rows": 26338,
+          "first_date": "1926-07-01",
+          "last_date": "2026-09-30"
+        }
+      ],
+      "first_date": "1926-07-01",
+      "last_date": "2026-09-30",
+      "source_id": "ind10_daily"
+    }
+  ],
+  "optional_files_missing": []
+}
