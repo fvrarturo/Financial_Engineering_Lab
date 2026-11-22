@@ -35,14 +35,15 @@ from dash import Input, Output, State, dash_table, dcc, html  # noqa: E402
 
 FLOOR, TARGET = 95e6, 0.02
 STRATEGY_KEYS = ["cash", "merton_const", "merton_vol", "cppi", "cppi_vol", "obpi_merton", "obpi_merton_untuned",
-                 "dp_policy"]
+                 "dp_policy", "dp_premrobust"]
 DEFAULT_STRATS = ["merton_const", "cppi", "cppi_vol", "obpi_merton"]
 KNOBBED = {"cppi", "cppi_vol", "obpi_merton"}
 COLORS = {"cash": "#7f7f7f", "merton_const": "#1f77b4", "merton_vol": "#17becf", "cppi": "#d62728",
-          "cppi_vol": "#ff7f0e", "obpi_merton": "#2ca02c", "obpi_merton_untuned": "#98df8a", "dp_policy": "#9467bd"}
+          "cppi_vol": "#ff7f0e", "obpi_merton": "#2ca02c", "obpi_merton_untuned": "#98df8a", "dp_policy": "#9467bd",
+          "dp_premrobust": "#e377c2"}
 LABELS = {"cash": "Cash", "merton_const": "Merton (const σ)", "merton_vol": "Merton (cond. σ)", "cppi": "CPPI",
           "cppi_vol": "CPPI (gap-aware)", "obpi_merton": "OBPI-Merton", "obpi_merton_untuned": "OBPI-Merton (K_eff=K)",
-          "dp_policy": "DP (λ*)"}
+          "dp_policy": "DP (λ*)", "dp_premrobust": "DP (premium-robust)"}
 RUN_DIRS = {"full": "results", "quick": "results/quick"}
 DP_RUNS = {"full"}          # runs that merge the dp_policy rows from config dp.results_dir (same seeds as the full run)
 
@@ -57,6 +58,17 @@ def _cfg():
 
 def dp_results_dir() -> Path:
     return ROOT / (_cfg().get("dp", {}).get("results_dir") or "results_dp")
+
+
+def dp_extra_results_dirs() -> list[Path]:
+    """Every extra results directory merged into the full run: results_dp (dp_policy) and, when configured,
+    results_dp_mu (dp_premrobust, branch dp_mu)."""
+    c = _cfg()
+    out = [dp_results_dir()]
+    pr = c.get("dp_premrobust", {}).get("results_dir")
+    if pr:
+        out.append(ROOT / pr)
+    return out
 
 
 def dp_policy_dir() -> Path:
@@ -76,13 +88,14 @@ class Results:
         self.backtest = self._pq("backtest/summary.parquet")
         mp = self.root / "run_manifest.json"
         self.manifest = json.loads(mp.read_text()) if mp.exists() else None
-        # merge extra result directories (results_dp: strategy dp_policy), each row remembers its root
+        # merge extra result directories (results_dp: dp_policy, results_dp_mu: dp_premrobust); each row
+        # remembers its root; rows of a strategy an extra directory provides replace that strategy's rows
         for er in extra_roots or []:
             p = Path(er) / "mc" / "summary.parquet"
             if p.exists():
                 x = pd.read_parquet(p).assign(_root=str(er))
                 self.summary = x if self.summary is None else pd.concat(
-                    [self.summary[self.summary.strategy != "dp_policy"], x], ignore_index=True)
+                    [self.summary[~self.summary.strategy.isin(x.strategy.unique())], x], ignore_index=True)
                 if self.manifest is None:
                     mp2 = Path(er) / "run_manifest.json"
                     self.manifest = json.loads(mp2.read_text()) if mp2.exists() else None
@@ -108,7 +121,7 @@ class Results:
 
 @lru_cache(maxsize=4)
 def load_results(run: str) -> Results:
-    return Results(ROOT / RUN_DIRS.get(run, run), [dp_results_dir()] if run in DP_RUNS else None)
+    return Results(ROOT / RUN_DIRS.get(run, run), dp_extra_results_dirs() if run in DP_RUNS else None)
 
 
 def available_runs():

@@ -273,3 +273,11 @@ dp:
     scenarios_industries: [base, dgp_garch_t, fhs]
   validation:
     v5_grid_tol: 0.001         # 0.1 pp grid tolerance on top of 2.58 binomial SEs
+
+# ----------------------------------------------------------------------------- premium-robust DP (branch dp_mu)
+dp_premrobust:                 # same 8 solves as dp (base premium); lam* recalibrated over robust_set + mu_low
+  results_dir: results_dp_mu   # dp_premrobust evaluation rows (same schema as results_dp); merged by the app
+  report_dir: reports/dp_mu
+  n_jobs: 6                    # cores - 2 (8-core machine)
+  calib_set: [base, dgp_garch_t, fhs, param_unc, persistent, mu_low]   # tune.robust_set + mu_low (premium x 0.5)
+  eval_scenarios: [base, dgp_garch_t, fhs, param_unc, persistent, mu_low, mu_zero, fat_tails, jump]

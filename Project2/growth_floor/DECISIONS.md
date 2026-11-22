@@ -899,3 +899,27 @@ with the SPEC 03 run; a partial 1–2-asset result was not worth the risk to the
 **Final**: pytest 67 passed on `dp`. App merge checked against the main run's results (read-only): 8057 + 90 rows.
 Nothing merged; main folder untouched since the pre-DP snapshot commit.
 **Status**: kept.
+
+## 2026-11-22: Premium-robust λ\* for the DP (`dp_premrobust`, branch `dp_mu`)
+**Question**: under `mu_zero` the DP breach reaches 3.25% (calm T = 2) vs ≤ 0.8% for OBPI/CPPI, because λ\* was calibrated
+only on the robust set at the base premium (3.91%). Does recalibrating λ against a lower premium fix this without re-solving?
+**Decision**: no new solves. The 8 SPEC 04 solves (base estimates, base premium; φ tables copied unchanged from
+`results/policies/dp_us_mkt.npz`, checked identical) are reused; only the data-generating process in calibration changes.
+λ\* is recalibrated per named state × T ∈ {1, 2} with the unchanged SPEC 04 rule (`05_dp.select_lam`: 1.25% on the worst case,
+logistic crossing if noisy, next grid λ at or above; tuning seed, 20k paths) over `tune.robust_set` **+ mu_low** (premium × 0.5).
+mu_zero stays a held-out stress (not in calibration). Saved as a separate strategy `dp_premrobust`
+(`results/policies/dp_premrobust_us_mkt.npz`, `reports/dp_mu/calibration_dp_premrobust_us_mkt.json`); `dp_policy`'s λ\* untouched.
+Code: `scripts/06_dp_premrobust.py` (calibrate / evaluate / report), config `dp_premrobust`, 6 joblib workers (8 cores − 2).
+**Check**: the robust-set-only rule on the same runs reproduces the original lookup exactly ([[4 4 4 3 2], [5 6 5 5 5]]).
+**λ\* result**: new lookup [[5 4 4 3 2], [6 6 6 5 5]]: one grid step up in calm T = 1 (7.07e-4 → 1.36e-3), calm T = 2 and
+elevated T = 2 (1.36e-3 → 2.61e-3); mu_low binds in 9/10 cells. Every cell reaches the target on the existing grid
+(largest λ = 5e-3 never needed), so no extra solves.
+**Evaluation** (eval seed, 50k paths, same seeds as SPEC 03 full run, paired; base + robust set + mu_low, mu_zero, fat_tails,
+jump; `results_dp_mu/`, app label "DP (premium-robust)"). Unchanged cells reproduce `dp_policy` exactly (pairing check).
+mu_zero breach (orig → premium-robust): calm T1 1.78% → 0.34%, calm T2 3.25% → 1.16%, elevated T2 2.50% → 0.83%; max over all
+10 cells 1.65% (crisis T2, λ unchanged). Base CE excess cost vs dp_policy: −7 bp/yr (calm T1), −8 (calm T2), −7 (elevated T2),
+0 elsewhere. vs gap-aware CPPI: still +13 … +63 bp/yr in every cell, at lower worst-case breach (≤ 0.95% vs 1.17–1.33%).
+**Open**: mu_zero margins are thinner in cells where λ did not move (crisis T2 1.65%, calm/normal T1 1.75–1.78% under
+dp_policy were already < 2%). fat_tails (outside the calibration set by design) still exceeds 2% for the DP in crisis T1
+(2.64%) and extreme T1 (3.45%), as for gap-aware CPPI (2.2–2.7%); unchanged by this recalibration.
+**Status**: on branch `dp_mu`, not merged (user decides). App merge checked: 8057 + 90 + 90 rows; pytest 67 passed.

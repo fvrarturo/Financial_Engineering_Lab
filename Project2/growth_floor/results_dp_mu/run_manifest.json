@@ -1,0 +1,723 @@
+{
+ "generated": "2026-11-22T14:22:37",
+ "git_branch": "dp_mu",
+ "master_seed": 20261121,
+ "config_snapshot": {
+  "data": {
+   "raw_dir": "data/raw",
+   "processed_dir": "data/processed",
+   "manifest": "data/raw/MANIFEST.json",
+   "sources": {
+    "ff3_daily": {
+     "file": "F-F_Research_Data_Factors_daily.csv",
+     "required": true
+    },
+    "ff3_monthly": {
+     "file": "F-F_Research_Data_Factors.csv",
+     "required": true
+    },
+    "ind10_daily": {
+     "file": "10_Industry_Portfolios_Daily.csv",
+     "required": false
+    }
+   },
+   "rf": {
+    "daily": {
+     "source": "ff3_daily",
+     "column": "RF"
+    },
+    "monthly": {
+     "source": "ff3_monthly",
+     "column": "RF"
+    }
+   },
+   "assets": {
+    "us_mkt": {
+     "source": "ff3_daily",
+     "column": "Mkt-RF",
+     "add_rf": true,
+     "monthly_check": {
+      "source": "ff3_monthly",
+      "column": "Mkt-RF",
+      "add_rf": true
+     }
+    },
+    "ind_nodur": {
+     "source": "ind10_daily",
+     "section": "value_weighted",
+     "column": "NoDur",
+     "add_rf": false
+    },
+    "ind_durbl": {
+     "source": "ind10_daily",
+     "section": "value_weighted",
+     "column": "Durbl",
+     "add_rf": false
+    },
+    "ind_manuf": {
+     "source": "ind10_daily",
+     "section": "value_weighted",
+     "column": "Manuf",
+     "add_rf": false
+    },
+    "ind_enrgy": {
+     "source": "ind10_daily",
+     "section": "value_weighted",
+     "column": "Enrgy",
+     "add_rf": false
+    },
+    "ind_hitec": {
+     "source": "ind10_daily",
+     "section": "value_weighted",
+     "column": "HiTec",
+     "add_rf": false
+    },
+    "ind_telcm": {
+     "source": "ind10_daily",
+     "section": "value_weighted",
+     "column": "Telcm",
+     "add_rf": false
+    },
+    "ind_shops": {
+     "source": "ind10_daily",
+     "section": "value_weighted",
+     "column": "Shops",
+     "add_rf": false
+    },
+    "ind_hlth": {
+     "source": "ind10_daily",
+     "section": "value_weighted",
+     "column": "Hlth",
+     "add_rf": false
+    },
+    "ind_utils": {
+     "source": "ind10_daily",
+     "section": "value_weighted",
+     "column": "Utils",
+     "add_rf": false
+    },
+    "ind_other": {
+     "source": "ind10_daily",
+     "section": "value_weighted",
+     "column": "Other",
+     "add_rf": false
+    }
+   }
+  },
+  "trading_days_per_year": 252,
+  "estimation": {
+   "start_date": null,
+   "end_date": null,
+   "robustness_start_dates": [
+    "1963-07-01",
+    "1990-01-01"
+   ],
+   "fallback_start": "1990-01-01",
+   "fallback_rule": {
+    "max_persistence": 0.998,
+    "min_draw_valid_share": 0.7
+   }
+  },
+  "checks": {
+   "report_dir": "reports/data_check",
+   "coverage": {
+    "min_days_per_year": 240,
+    "max_days_per_year": 260,
+    "saturday_trading_last_year": 1952,
+    "explained_years": {
+     "1968": "NYSE closed on Wednesdays Jun-Dec 1968 (paperwork crisis); verified: 0-1 Wednesday sessions/month Jun-Dec in the data"
+    }
+   },
+   "dates": {
+    "gap_report_days": 4,
+    "gap_warn_days": 14
+   },
+   "missing": {
+    "max_nan_share_fail": 0.01
+   },
+   "units": {
+    "max_abs_median": 0.005,
+    "min_std": 0.003,
+    "max_std": 0.05
+   },
+   "extremes": {
+    "top_n": 20,
+    "expected_dates": [
+     "1987-10-19"
+    ],
+    "expected_months": [
+     "2020-03"
+    ],
+    "suspicious_abs_return": 0.25
+   },
+   "monthly_crosscheck": {
+    "flag_abs_diff": 0.005,
+    "max_flag_share_fail": 0.05
+   },
+   "rf": {
+    "tolerance_beyond_rounding": 0.0001
+   },
+   "summary": {
+    "window_days": [
+     252,
+     504
+    ],
+    "loss_threshold": -0.05
+   },
+   "figures": {
+    "rolling_vol_days": 63,
+    "rolling_return_days": 252,
+    "hist_bins": 200,
+    "dpi": 120
+   }
+  },
+  "model": {
+   "seed": 20261120,
+   "results_dir": "results/model",
+   "report_dir": "reports/model",
+   "base": "gjr_t",
+   "comparison": [
+    "garch_n",
+    "garch_t",
+    "gjr_t",
+    "egarch_t"
+   ],
+   "scale": 100,
+   "innovations": "t",
+   "premium": {
+    "mode": "constant_arith",
+    "annual_excess": "estimate",
+    "shrink_to": 0.0,
+    "shrink_weight": 0.5
+   },
+   "gaps": {
+    "flag_calendar_days": 4,
+    "variants": [
+     "none",
+     "scale"
+    ],
+    "base_variant": "scale"
+   },
+   "expanding": {
+    "min_obs": 2520,
+    "refit_every": 252
+   },
+   "rolling": {
+    "window": 5040,
+    "step": 252
+   },
+   "subsamples": [
+    [
+     "pre-1963",
+     null,
+     "1962-12-31"
+    ],
+    [
+     "1963-1999",
+     "1963-01-01",
+     "1999-12-31"
+    ],
+    [
+     "2000-end",
+     "2000-01-01",
+     null
+    ]
+   ],
+   "robustness_start_dates": [
+    "1952-07-01",
+    "1963-07-01",
+    "1990-01-01"
+   ],
+   "n_param_draws": 200,
+   "nu_min": 2.5
+  },
+  "rate": {
+   "mode": "vasicek",
+   "start_date": "1954-01-01",
+   "end_date": null,
+   "floor_at_zero": false,
+   "corr_alignment": "same_month",
+   "pit_min_months": 60
+  },
+  "states": {
+   "named_percentiles": {
+    "calm": 10,
+    "normal": 50,
+    "elevated": 90,
+    "crisis": 99,
+    "extreme": "max"
+   },
+   "rate_grid": [
+    0.0,
+    0.02,
+    0.05
+   ],
+   "dense_sigma_grid": [
+    0.08,
+    0.1,
+    0.12,
+    0.15,
+    0.2,
+    0.25,
+    0.3,
+    0.4,
+    0.5,
+    0.65,
+    0.8
+   ],
+   "dense_cap_mult": 1.1,
+   "anchor_dates": [
+    "2006-12-29",
+    "1987-10-16",
+    "1987-10-19",
+    "2008-10-10",
+    "2008-11-20",
+    "2020-03-16",
+    "2022-06-16",
+    "latest"
+   ],
+   "secondary_descriptors": {
+    "realised_vol_days": 63,
+    "drawdown_days": 252
+   }
+  },
+  "validation": {
+   "pit": {
+    "horizons": [
+     252,
+     504
+    ],
+    "n_paths": 2000,
+    "start_month_step": 3,
+    "levels": [
+     0.01,
+     0.02,
+     0.05,
+     0.1
+    ],
+    "buckets": {
+     "calm": [
+      0,
+      30
+     ],
+     "normal": [
+      30,
+      70
+     ],
+     "elevated": [
+      70,
+      95
+     ],
+     "crisis": [
+      95,
+      100
+     ]
+    },
+    "bucket_groups": {
+     "high": [
+      "elevated",
+      "crisis"
+     ]
+    },
+    "min_n_eff_verdict": 8,
+    "eras": [
+     [
+      "pre-1952",
+      null,
+      "1951-12-31"
+     ],
+     [
+      "1952-1999",
+      "1952-01-01",
+      "1999-12-31"
+     ],
+     [
+      "2000-",
+      "2000-01-01",
+      null
+     ]
+    ],
+    "ci_level": 0.95
+   },
+   "stylised": {
+    "n_paths": 40,
+    "acf_lags": 100,
+    "window_step": 21
+   },
+   "var": {
+    "levels": [
+     0.01,
+     0.001
+    ]
+   },
+   "crash": {
+    "state_date": "1987-10-16",
+    "one_day_loss": 0.17,
+    "shock_date": "1987-10-19"
+   }
+  },
+  "problem": {
+   "W0": 100000000.0,
+   "K": 95000000.0,
+   "gamma": 2.0,
+   "breach_target": 0.02,
+   "horizons_days": [
+    252,
+    315,
+    378,
+    441,
+    504
+   ]
+  },
+  "engine": {
+   "history_days": 63,
+   "gap_min_sigmas": 1.0,
+   "locked_phi": 0.01,
+   "locked_days": 21,
+   "rebalance_every": 1,
+   "sigma_cap_mult": 1.5
+  },
+  "strategies": {
+   "default_set": [
+    "cash",
+    "merton_const",
+    "merton_vol",
+    "cppi",
+    "cppi_vol",
+    "obpi_merton"
+   ],
+   "knobs": {
+    "cppi": {
+     "name": "m",
+     "lo": 1.0,
+     "hi": 60.0,
+     "spacing": "log",
+     "direction": 1,
+     "default": 5.0
+    },
+    "cppi_vol": {
+     "name": "z",
+     "lo": 0.5,
+     "hi": 200.0,
+     "spacing": "log",
+     "direction": -1,
+     "default": 6.0
+    },
+    "obpi_merton": {
+     "name": "K_eff",
+     "lo": 0.8,
+     "hi": 1.1,
+     "spacing": "lin",
+     "direction": -1,
+     "default": 1.0,
+     "relative_to_K": true
+    }
+   },
+   "floor": {
+    "mode": "robust",
+    "alpha": 0.001
+   },
+   "obpi_vol_input": "conditional",
+   "dp_policy_dir": "results/policies"
+  },
+  "tune": {
+   "target_breach": 0.0125,
+   "selection": "logistic",
+   "n_paths": 20000,
+   "n_paths_quick": 5000,
+   "n_paths_industries": 10000,
+   "grid_points": 10,
+   "passes": 2,
+   "robust_set": [
+    "base",
+    "dgp_garch_t",
+    "fhs",
+    "param_unc",
+    "persistent"
+   ],
+   "modes": [
+    "uniform",
+    "uniform_all",
+    "state"
+   ],
+   "state_tune_sigma": "dense_and_named",
+   "results_dir": "results/tuned"
+  },
+  "mc": {
+   "master_seed": 20261121,
+   "n_paths": 50000,
+   "n_paths_quick": 5000,
+   "n_paths_industries": 20000,
+   "n_jobs": -1,
+   "bootstrap_reps": 200,
+   "terminal_subsample": 5000,
+   "sample_paths": 200,
+   "path_stride": 2,
+   "fan_subsample": 5000,
+   "fan_quantiles": [
+    0.05,
+    0.25,
+    0.5,
+    0.75,
+    0.95
+   ],
+   "terminal_quantiles": [
+    0.005,
+    0.01,
+    0.02,
+    0.05,
+    0.25,
+    0.5,
+    0.75,
+    0.95
+   ],
+   "results_dir": "results/mc",
+   "frontier_points": 10,
+   "frontier_n_paths": 20000,
+   "scenarios": {
+    "base": {},
+    "mu_low": {
+     "premium_mult": 0.5
+    },
+    "mu_zero": {
+     "premium_mult": 0.0
+    },
+    "premium_prop_var": {
+     "premium_mode": "prop_variance"
+    },
+    "fat_tails": {
+     "nu_shift": -3,
+     "nu_min": 3
+    },
+    "persistent": {
+     "persistence_add": 0.01,
+     "persistence_cap": 0.995
+    },
+    "param_unc": {
+     "param_draws": true
+    },
+    "fhs": {
+     "innovations": "fhs"
+    },
+    "jump": {
+     "jump_prob_per_year": 0.01,
+     "jump_return": -0.2
+    },
+    "rate_const": {
+     "rate_mode": "constant"
+    },
+    "dgp_garch_t": {
+     "alt_model": "garch_t"
+    },
+    "dgp_egarch_t": {
+     "alt_model": "egarch_t"
+    },
+    "rho_zero": {
+     "rho": 0.0
+    }
+   },
+   "worst_case_set": [
+    "base",
+    "dgp_garch_t",
+    "fhs",
+    "param_unc",
+    "persistent"
+   ],
+   "stress_set": [
+    "fat_tails",
+    "jump",
+    "mu_low",
+    "mu_zero"
+   ],
+   "plan": {
+    "us_mkt": {
+     "base": {
+      "states": "all",
+      "horizons": "all",
+      "frontier": true
+     },
+     "dgp_garch_t": {
+      "states": "all",
+      "horizons": [
+       252,
+       504
+      ]
+     },
+     "other": {
+      "scenarios": [
+       "mu_low",
+       "mu_zero",
+       "premium_prop_var",
+       "fat_tails",
+       "persistent",
+       "param_unc",
+       "fhs",
+       "jump",
+       "rate_const",
+       "dgp_egarch_t",
+       "rho_zero"
+      ],
+      "states": "named",
+      "horizons": [
+       252,
+       504
+      ]
+     }
+    },
+    "industries": {
+     "scenarios": [
+      "base",
+      "dgp_garch_t",
+      "fhs",
+      "jump"
+     ],
+     "states": "named",
+     "horizons": [
+      252,
+      504
+     ]
+    }
+   }
+  },
+  "backtest": {
+   "refit_every_days": 1260,
+   "min_obs": 2520,
+   "start_step": "monthly",
+   "knob_mode": "state",
+   "results_dir": "results/backtest",
+   "buckets": {
+    "calm": [
+     0,
+     30
+    ],
+    "normal": [
+     30,
+     70
+    ],
+    "elevated": [
+     70,
+     95
+    ],
+    "crisis": [
+     95,
+     100
+    ]
+   }
+  },
+  "dp": {
+   "results_dir": "results_dp",
+   "policy_dir": "results/policies",
+   "compare_results_dir": "../growth_floor/results",
+   "n_jobs": 2,
+   "chunk_h": 4,
+   "tau_max": 504,
+   "r0": "median",
+   "y_grid": {
+    "bands": {
+     "edges": [
+      0.3,
+      0.9,
+      0.97,
+      1.0,
+      1.08,
+      1.3,
+      4.0
+     ],
+     "counts": [
+      22,
+      10,
+      14,
+      34,
+      15,
+      24
+     ]
+    }
+   },
+   "h_grid": {
+    "n": 40,
+    "lo_mult_calm": 0.5
+   },
+   "quad_nodes": 60,
+   "interp_h": "pchip",
+   "interp_y": "pchip",
+   "phi_points": 41,
+   "lam_grid": [
+    0.0,
+    0.0001,
+    0.000192,
+    0.000368,
+    0.000707,
+    0.00136,
+    0.00261,
+    0.005
+   ],
+   "calib": {
+    "n_paths": 20000,
+    "n_paths_industries": 10000,
+    "horizons": [
+     252,
+     504
+    ],
+    "robust_set_industries": [
+     "base",
+     "dgp_garch_t",
+     "fhs"
+    ]
+   },
+   "eval": {
+    "horizons": [
+     252,
+     504
+    ],
+    "scenarios_us_mkt": [
+     "base",
+     "dgp_garch_t",
+     "fhs",
+     "param_unc",
+     "persistent",
+     "fat_tails",
+     "jump",
+     "mu_low",
+     "mu_zero"
+    ],
+    "scenarios_industries": [
+     "base",
+     "dgp_garch_t",
+     "fhs"
+    ]
+   },
+   "validation": {
+    "v5_grid_tol": 0.001
+   }
+  },
+  "dp_premrobust": {
+   "results_dir": "results_dp_mu",
+   "report_dir": "reports/dp_mu",
+   "n_jobs": 6,
+   "calib_set": [
+    "base",
+    "dgp_garch_t",
+    "fhs",
+    "param_unc",
+    "persistent",
+    "mu_low"
+   ],
+   "eval_scenarios": [
+    "base",
+    "dgp_garch_t",
+    "fhs",
+    "param_unc",
+    "persistent",
+    "mu_low",
+    "mu_zero",
+    "fat_tails",
+    "jump"
+   ]
+  },
+  "_root": "/Users/clarysvignal/Desktop/Courses/Financial_Engineering/proj2/growth_floor_dpmu"
+ },
+ "assets": [
+  "us_mkt"
+ ],
+ "note": "dp_premrobust rows only (premium-robust lam*); merge with results/ and results_dp/"
+}
