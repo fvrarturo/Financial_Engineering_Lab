@@ -29,6 +29,33 @@ def ce_bootstrap_se(W: np.ndarray, gamma: float, reps: int, seed: int) -> float:
     return float(vals.std(ddof=1))
 
 
+# CE reporting convention (2026-11-22): CE is quoted as excess over the cash return, %/yr:
+#   ce_xcash = ce_ann(strategy) - ce_ann(cash strategy) in the same cell (asset, state, T, scenario, seed).
+# The cash strategy sees the same simulated rate paths (paired seeds), so ce_xcash is the annualised certainty-equivalent
+# return earned over holding cash in that world. `ce_ann_excess` (= ce_ann - r0) is kept in the files for continuity but
+# is not quoted: r0 is the starting short rate, not the cash return over T.
+CE_XCASH_KEYS = ["asset", "state", "T_days", "scenario", "seed"]
+
+
+def add_ce_xcash(df, ref=None, keys=None):
+    """Return df with `ce_ann_cash` and `ce_xcash` (annualised CE minus the cash strategy's, fraction per year).
+    `ref` holds the cash rows (default: df itself); keys default to CE_XCASH_KEYS restricted to columns of both."""
+    if df is None:
+        return None
+    ref = df if ref is None else ref
+    keys = [k for k in (keys or CE_XCASH_KEYS) if k in df.columns and k in ref.columns]
+    cash = (ref[ref.strategy == "cash"][keys + ["ce_ann"]].drop_duplicates(keys)
+            .rename(columns={"ce_ann": "ce_ann_cash"}))
+    out = df.drop(columns=["ce_ann_cash", "ce_xcash"], errors="ignore").merge(cash, on=keys, how="left")
+    out["ce_xcash"] = out["ce_ann"] - out["ce_ann_cash"]
+    return out
+
+
+def ce_xcash_se(ce_level, ce_se, ce_ann, T_days, N: int = 252):
+    """Approximate SE of ce_xcash (delta method on the annualisation; cash CE treated as known)."""
+    return ce_se / ce_level * (1.0 + ce_ann) / (T_days / N)
+
+
 def terminal_metrics(W_T: np.ndarray, K: float, W0: float, r0: float, T_days: int, gamma: float,
                      quantiles: list[float], boot_reps: int = 200, boot_seed: int = 0, N: int = 252) -> dict:
     W = np.asarray(W_T, dtype=float)

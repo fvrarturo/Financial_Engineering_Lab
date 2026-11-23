@@ -1,0 +1,1 @@
+scripts/07_report_numbers.py → results/report/tables/assets_model.csv (from results/model/params_{asset}.json, reports/model/{asset}/model_report.json)

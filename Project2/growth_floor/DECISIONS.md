@@ -15,6 +15,10 @@ pytest                            # tests
 python scripts/03_run_mc.py --asset all [--quick]   # Stage 3: tuning + Monte Carlo (quick -> results/quick/)
 python scripts/04_backtest.py --asset all [--quick]  # Stage 4: historical backtest
 python app/app.py                                    # Dash app, http://127.0.0.1:8050
+python scripts/05_dp.py ...; python scripts/06_dp_premrobust.py ...   # DP (see README)
+python scripts/07_report_numbers.py   # numbers.json + tables (+ figure inputs when the large files exist)
+python scripts/08_build_report.py     # figures, deliverables/report.{md,html,pdf}, deck.{html,pdf}
+python scripts/09_package.py          # submission/ and deliverables/growth_floor_submission.zip
 ```
 
 All settings live in `config.yaml`. Stage 1 has no randomness. Stage 2 seeds: `model.seed` = 20261120.
@@ -54,6 +58,35 @@ reproduces the same numbers.
 | Terminal-wealth distributions / fan charts | `scripts/03_run_mc.py` | `results/mc/terminal/*.npy`, `results/mc/paths/*.npz` |
 | Seeds, n_paths, data hash, runtimes, param-draw acceptance, fallback windows | `scripts/03_run_mc.py` | `results/run_manifest.json`, `results/mc/timings.parquet` |
 | Historical backtest: realised breach / CE by σ_0 bucket and decade, n_eff | `scripts/04_backtest.py` | `results/backtest/summary.parquet`, `per_start.parquet`, `fits_{asset}.json` |
+| DP policy, λ\* calibration, validation V1–V6 (us_mkt) | `scripts/05_dp.py` | `results/policies/dp_{asset}.npz`, `reports/dp/{calibration,validation}_us_mkt.json`, `results_dp/mc/` |
+| Premium-robust DP: λ\*, evaluation, industry comparators | `scripts/06_dp_premrobust.py` | `results/policies/dp_premrobust_{asset}.npz`, `reports/dp_mu/*`, `results_dp_mu/mc/`, `results_ind_extra/mc/` |
+| Deployment rule output | `scripts/07_report_numbers.py` (`gf.deployment`) | `results/deployment.csv`; numbers.json → `deploy.*` |
+
+**Report and deck (SPEC 05).** Every number quoted in `deliverables/report.pdf` and `deck.pdf` is read from
+`results/report/numbers.json` or a table in `results/report/tables/`. Both are written by `scripts/07_report_numbers.py` from the
+files above. `scripts/08_build_report.py` renders the templates in `report/templates/`. The numbers.json keys, by report section:
+
+| report item | numbers.json key / table |
+|---|---|
+| Mandate (W0, K, γ, 2%, horizons) | `mandate.*` |
+| Tuning target, floor α, path counts, seeds, scenario definitions, MC standard errors | `settings.*` |
+| Executive summary table | `tables/exec_compact_us_mkt.md` (raw: `exec_summary_us_mkt.csv`) |
+| Headline: CE range, bp/yr over best simple rule, worst-case breach, stress maxima | `headline.*` |
+| Every cell (asset × strategy × state × T): breaches by scenario, CE − cash, φ, turnover, quantiles, breach split | `cells.<asset>.<strategy>.<state>.T<1|2>.*`; `tables/all_cells.csv` |
+| Data checks (RF precision, negative months, gaps, Saturdays, 1968, cross-check, hashes) | `data.*`; `tables/data_windows.md` |
+| Model (params, BIC table, premium, Vasicek, states, anchors, stylised facts, PIT, sub-samples) | `model.*`; `tables/model_comparison_us_mkt`, `pit_us_mkt`, `param_stability_us_mkt` |
+| Fallback window and per-asset diagnostics | `fallback.*`; `tables/assets_model` |
+| Deployment rule | `deploy.*`; `tables/deployment`; `results/deployment.csv` |
+| Performance by state (near-floor probability, quantiles, φ, turnover) | `perf.*`; `tables/performance_dp_us_mkt` |
+| DP policy readings, λ\* lookup, floor premium | `policy.*` |
+| Stress tests and failures | `stress.*`; `tables/stress_us_mkt`, `stress_failures_us_mkt` |
+| Breach decomposition | `decomp.*`, `decomp_dp.*`; `tables/breach_decomposition_us_mkt` |
+| Backtest | `backtest.*`; `tables/backtest_us_mkt`, `backtest_decade_us_mkt` |
+| Industries / external validity, DP misses | `ind.*`; `tables/industries`, `industries_dp_vs_comparators`, `dp_misses` |
+| Gap-aware CPPI negative CE − cash | `cppi_neg.*`; `tables/cppi_gap_negative_ce` |
+| DP validation V1–V6 | `validation.*` |
+| Dead ends with result files (base-only tuning, untuned OBPI) | `dead_ends.*` |
+| Reproducibility (seeds, commits, hashes) | `repro.*`, `data.manifest` |
 
 ---
 
@@ -923,3 +956,117 @@ mu_zero breach (orig → premium-robust): calm T1 1.78% → 0.34%, calm T2 3.25%
 dp_policy were already < 2%). fat_tails (outside the calibration set by design) still exceeds 2% for the DP in crisis T1
 (2.64%) and extreme T1 (3.45%), as for gap-aware CPPI (2.2–2.7%); unchanged by this recalibration.
 **Status**: on branch `dp_mu`, not merged (user decides). App merge checked: 8057 + 90 + 90 rows; pytest 67 passed.
+
+## 2026-11-22: CE convention: quoted as excess over the cash return (%/yr)
+**Decision (user)**: from now on CE is quoted everywhere as the excess over the cash return, %/yr.
+**Definition**: `ce_xcash = ce_ann(strategy) − ce_ann(cash strategy)` in the same cell (asset, state, T, scenario, seed).
+Both run on the same simulated paths (paired seeds), so the cash leg uses the same Vasicek rate paths. It is the annualised
+certainty-equivalent return earned over holding cash in that world. Computed at read/report time by
+`gf.metrics.add_ce_xcash` (no result file rewritten). The stored `ce_ann_excess` (= ce_ann − r0) stays in the parquet
+files for continuity but is no longer quoted: r0 is the starting short rate, not the cash return over T. The two
+differ by up to ≈ 25 bp/yr (e.g. us_mkt normal T = 1: cash CE 2.90% vs r0 2.67%) because rates mean-revert.
+- SE shown in the app: delta method on the annualisation, cash CE treated as known (`ce_xcash_se`).
+- Frontier rows (20k paths, eval seed) use the cash CE of the 50k summary row of the same cell. The cash CE is
+  nearly deterministic given the rate paths, so this is a negligible mismatch.
+- Validation tables on the tuning seed (V2, V4, λ curves) subtract a cash run on the same seed and path count
+  (`05_dp.cash_ce`, cached in the policy cache).
+- CE *differences* (ΔCE bp/yr in V4, V6, scorecard comparisons) are unchanged by the convention.
+- Earlier DECISIONS entries quote CE as annualised levels or as `ce_ann_excess` (vs r0). Those numbers are historical.
+  Regenerated: reports/dp/tables_us_mkt.md, reports/dp/lambda_curves_us_mkt.png, reports/dp/SUMMARY.md scorecard,
+  reports/dp_mu/scorecard_dp_premrobust_us_mkt.csv. App: scorecard, breach/CE heatmap, frontier, robustness and the
+  live "Custom" tab.
+**Not found in the repo**: no slide deck or deck figures, and no results table in README.md (a convention note was
+added there instead).
+**Status**: kept.
+
+## 2026-11-22: External validity: premium-robust DP on ind_telcm, ind_enrgy, ind_hlth (branch `dp_ind`)
+**Run**: the full premium-robust procedure per asset, unchanged from us_mkt. 8 SPEC 04 backward solves (same λ grid
+0 + geomspace(1e-4, 5e-3, 7), same y/h/z/φ grids, each asset's own base GJR-t fit and base premium, median r0). Then λ\*
+per named state × T ∈ {1, 2} with the SPEC 04 rule (1.25% target on the worst case over the robust set + mu_low;
+logistic crossing if noisy; next grid λ at or above). Tuning seed, **10k** paths (= tune.n_paths_industries).
+Evaluation on the eval seed at **20k** paths (= mc.n_paths_industries) under base, robust set, mu_low, mu_zero,
+fat_tails, jump. Seeds = cell_seed(master, asset, tune|eval), identical to the SPEC 03 industry run (checked).
+6 workers (8 cores − 2). The 24 solves ran in one pool, assets in order, 2424 s wall (490–690 s per solve). Calibration
+≈ 40 s per asset, evaluation ≈ 35 s per asset. Total 14:36–15:32. No industry V1–V6 validation was run (not asked;
+same code and grids as the validated us_mkt solve).
+**Comparators**: the SPEC 03 industry plan evaluated cppi/cppi_vol/obpi only under base, dgp_garch_t, fhs, jump. To give
+them a robust-set worst case and stress numbers, their **existing** robust-tuned knobs (results/tuned/{asset}_robust.json,
+no retuning) were evaluated with `03_run_mc.eval_task` on the same eval seed and 20k paths under param_unc, persistent,
+mu_low, mu_zero, fat_tails (→ results_ind_extra/, `06_dp_premrobust.py compare`). Pairing check: re-running base reproduces
+the SPEC 03 rows exactly (160 rows per asset, Δbreach = ΔCE = 0).
+**λ\***: on the grid in all 30 cells (largest λ never needed); binding scenario at λ\* (from the calibration log): mu_low 17, dgp_garch_t 9, fhs 3, param_unc 1.
+**Result** (DP premium-robust; CE as excess over cash, %/yr; gap-aware CPPI = cppi_vol state, OBPI = obpi_merton state):
+- Worst case over the robust set ≤ 1.75% in **all 30 cells** (max 1.30%, enrgy normal T = 2). Comparators: cppi_vol
+  max 1.80% (telcm extreme T = 1), obpi max 1.35%.
+- mu_zero < 2% in **29/30 cells**. Exception: **ind_enrgy normal T = 2: 2.24%** (≈ 0.10 pp SE at 20k, so above 2% beyond
+  noise); there mu_low gave worst 1.30% at λ\* = 1.36e-3. Next highest: hlth elevated T = 1 1.69%, hlth calm T = 2 1.57%.
+  Comparators under mu_zero: cppi_vol ≤ 0.57%, obpi ≤ 1.74%. Halving the premium in calibration is not enough for every
+  cell. The DP stays the most premium-sensitive strategy.
+- Base CE − cash: DP above gap-aware CPPI in all 30 cells (telcm +24…+108 bp/yr, enrgy +33…+230, hlth +20…+78) and above
+  OBPI in all 30 (telcm +15…+57, enrgy +17…+73, hlth +36…+166). DP base breach max 0.98%; it is above
+  gap-aware CPPI's in some cells and below in others (no uniform ordering), so the CE gaps are not breach-matched.
+- Other stresses for the DP (max over cells): fat_tails telcm 1.06%, enrgy 1.24%, hlth 1.94%; jump ≤ 1.20%.
+Outputs: results/policies/dp_{ind}.npz, dp_premrobust_{ind}.npz, results_dp_mu/ (us_mkt + 3 industries),
+results_ind_extra/, reports/dp_mu/{calibration,scorecard}_dp_premrobust_{ind}.json/csv, logs.
+**Status**: on `dp_ind`, not merged or pushed (user decides).
+
+---
+
+# SPEC 05: report, deck, submission
+
+## 2026-11-22: Why gap-aware CPPI has CE − cash < 0 in some industry cells (investigation; no strategy changed)
+**Question**: gap-aware CPPI (cppi_vol, state-dependent robust knobs) has negative CE − cash in 11 of 110 industry cells
+(base scenario), worst ind_enrgy extreme T = 1 at −2.09%/yr. Expected cause: lock-in to cash after a drawdown from extreme
+starts. **Script**: `scripts/07_report_numbers.py` → `results/report/tables/cppi_gap_negative_ce.{csv,md}` (summary rows +
+5k-path terminal subsamples, base scenario, eval seed).
+**Result**: the expected cause is only partly right. Hard lock-in, measured as `locked_cash_share` (φ < 1% on each of the
+last 21 days), is small in these cells: 0.7–4.6%. What happens is a *soft* lock-in, where the cushion is eroded rather
+than lost in one move. All 11 cells are crisis or extreme starts (σ0 52–155%), and 46–69% of paths end within 2% above the
+floor (p_near_floor; the median for cells with CE − cash ≥ 0 is 35%). Median W_T is $95.7–97.4M, while mean W_T is $103.9–109.8M,
+above the cash outcome. Across all 110 cells, CE − cash correlates −0.82 with p_near_floor and −0.73 with the strict lock-in share.
+**Mechanism**: gap-aware CPPI sets m = 1/(z·σ_d). When φ = m·C/W < 1, the cushion's daily volatility is m·σ_d = 1/z ≈ 20–21%
+(z = 4.7–6.2 in these cells), whatever the vol level. A cushion that volatile has a strongly negative median log growth
+(≈ −1/(2z²) per day before the premium), so most paths bleed the cushion to near zero within weeks of a high-vol start and
+then hold φ ≈ 0.1–0.4 of a thin cushion. They end near the robust floor K·e^{−q} grown at cash, which is ≈ $95–97M, below
+the ≈ $103M of all-cash. With γ = 2 the CE weights that mass heavily, so CE − cash < 0 although E[W_T] > cash.
+Where vol is normal, φ is clipped at 1 most of the time and the mechanism does not bind.
+**Consequence for deployment**: three fallback assets (ind_enrgy, ind_telcm, ind_utils) have deployed cells with CE − cash < 0
+(crisis/extreme, mostly T = 1). The floor still holds there; the cost is CE. The report states that from such starts on
+flagged assets the CPPI fallback can earn less than cash, and that cash itself would meet the floor.
+**Status**: explained; no strategy changed (SPEC 05 instruction).
+
+## 2026-11-22: Deployment rule implemented as code (team decision, before results were seen)
+**Decision**: `gf.deployment.deployment_choice(asset)` reads only SPEC 02 diagnostics. It returns `cppi_vol` (gap-aware CPPI,
+state-dependent robust knobs) if (a) the fallback window was triggered, (b) fewer than 70% of parameter draws are valid
+after the fallback, or (c) the base model's overall conditional PIT test gives "too thin" or "too fat" at H = 252 or 504 at
+any reported tail level (1, 2, 5, 10%). Otherwise it returns `dp_premrobust`. Bucket- and era-level PIT verdicts are not used:
+their n_eff is too small (crisis 2–4), and with them in, the rule would flag on noise.
+**Result** (`results/deployment.csv`): CPPI for ind_enrgy (fallback, 50% valid draws after it), ind_shops (fallback),
+ind_telcm (fallback, PIT too thin at H = 252) and ind_utils (fallback). All other assets get the DP. The outcome does not
+depend on how (c) is read: telcm is the only PIT rejection under any reading, and it is also a fallback asset.
+**Test**: `tests/test_deployment.py`.
+**Status**: kept.
+
+## 2026-11-22: Premium-robust DP run on the remaining 7 industries
+**Why**: the rule deploys the DP on ind_durbl, hitec, manuf, nodur and other, but the DP had been run only on us_mkt, telcm,
+enrgy and hlth. Reporting the deployed strategy's performance needs DP results on those assets. Shops and utils are run
+too, so both candidates are shown on every asset.
+**Run**: `scripts/run_dp_ind_rest.sh`: `06_dp_premrobust.py` solve / calibrate / evaluate / compare / report, unchanged
+procedure and settings from the dp_ind run (10k tune, 20k eval, same seeds). Logs: `reports/dp_mu/{solve,run}_ind2.log`.
+**Result** (finished 18:05; 56 solves at 559–706 s each, 6 workers): λ\* on the grid in every cell. Across all 10 industries
+the DP has a higher CE − cash than gap-aware CPPI in 100/100 cells. The only DP cell above 2% under the robust set or zero premium
+is still ind_enrgy normal T = 2 (mu_zero 2.24%), and the rule routes enrgy to CPPI. Thin zero-premium margins on deployed-DP
+assets: ind_other normal T = 2 1.98%, ind_nodur normal T = 1 1.89% (SE ≈ 0.10 pp at 20k paths). Under fat_tails (stress set) the
+DP exceeds 2% in several crisis/extreme cells on durbl, manuf, nodur, other and utils (max 2.94%, other extreme T = 1).
+Tables: `results/report/tables/industries.md`, `dp_fat_tails_failures.md`.
+**Status**: kept; the report shows the deployed strategy on all 11 assets.
+
+## 2026-11-22: Report tooling: Jinja2 → Markdown → HTML → PDF (headless Chromium)
+**Decision**: no LaTeX, Quarto or weasyprint is installed; pandoc is, but it needs a PDF engine. Templates
+(`report/templates/*.j2`) are rendered with Jinja2 (StrictUndefined, so a missing key fails the build), the Markdown is
+converted with python-markdown and printed to PDF with Playwright's Chromium. The deck is an HTML template printed at
+13.333 × 7.5 in. Added `jinja2`, `markdown` and `playwright` to requirements (`python -m playwright install chromium`).
+Figure inputs too large to commit (66 MB policy files, terminal-wealth arrays) are extracted by 07 into
+`results/report/inputs/` (≈ 8 MB) and committed with the small summary files (whitelist in `.gitignore`), so the fast path
+runs from a fresh clone.
+**Status**: kept.

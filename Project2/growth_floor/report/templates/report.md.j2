@@ -1,0 +1,507 @@
+{% set M = N.mandate %}{% set H = N.headline %}{% set U = N.cells.us_mkt %}{% set ST = N.model.states %}
+{% set dp = U.dp %}{% set cg = U.cppi_gap %}{% set ob = U.obpi %}{% set S = N.settings %}
+{% macro figure(name, title) %}
+<figure markdown="1">
+![{{ title }}]({{ fig(name) }})
+<figcaption><strong>{{ title }}.</strong> {{ cap[name] }}</figcaption>
+</figure>
+{% endmacro %}
+# Growing the money without breaking the floor
+
+<div class="meta">Investment committee report · MIT 15.456 hackathon · Team 27: Arturo Favara, Clarys Vignal, Nick Bernardini · Data through {{ N.data.last }}</div>
+
+## Executive summary
+
+<div class="box" markdown="1">
+**Recommendation.** Deploy the **premium-robust dynamic-programming (DP) policy**. It is a daily equity/cash rule
+solved for CRRA γ = {{ M.gamma | f(0) }} with a penalty on ending below {{ M.K | musd(0) }}, and its penalty is
+calibrated so the floor holds even if the equity premium is half our estimate. A **fallback rule**, fixed before any
+strategy results were seen, deploys **gap-aware CPPI** on any asset whose model diagnostics are weak. On our
+{{ N.deploy.n_assets }} test assets it routes {{ N.deploy.n_to_cppi }} to CPPI ({{ N.deploy.to_cppi | names }}).
+</div>
+
+**Expected performance (US market, base model, {{ S.n_paths_eval | i }} paths per cell).** The certainty equivalent
+exceeds the cash return by **{{ H.dp_ce_min | pct }} to {{ H.dp_ce_max | pct }} per year (annualised)**, depending on
+the starting state and horizon. That is **{{ H.adv_best_simple_min | bp }} to {{ H.adv_best_simple_max | bp }} bp/yr
+more than the best simple floor rule** in every one of the {{ H.n_cells }} named-state × horizon cells. The lowest
+figure is for an extreme-volatility start at T = 1, where the DP holds mostly cash.
+
+**Evidence that the floor holds.** The breach probability is at most **{{ H.dp_worst_max | pct }}** in every
+starting state, taking the worst of five models at each start: the estimated model plus four robust alternatives. The
+mandate's limit is {{ M.breach_target | pct(0) }}. On scenarios held out of tuning, the DP stays below
+{{ M.breach_target | pct(0) }} with a zero equity premium (max {{ H.dp_mu_zero_max | pct }}). It exceeds
+{{ M.breach_target | pct(0) }} under very fat tails (ν = {{ S.fat_nu_min }}) from crisis and extreme starts at T = 1 (max
+{{ H.dp_fat_max | pct }}). Gap-aware CPPI fails it too, in more cells, and the daily VaR backtest rejects ν = {{ S.fat_nu_min }} as too
+heavy (§3).
+
+**Main limitations.** (1) The DP spends the premium it is told exists; it is the most premium-sensitive strategy we
+tested. (2) The interest rate is fixed inside the DP; rate risk is handled only through a conservative floor. (3) The
+model's unconditional 1–2-year left tail is thinner than history; dynamic de-risking, not the model, carries the
+protection there. (4) The DP has not been run through the historical backtest (§6.5).
+{% if N.dp_missing %}(5) The DP has not yet been evaluated on {{ N.dp_missing | names }}; on those assets this report shows the simple rules only.{% endif %}
+
+
+**Summary table: us_mkt.** Each cell shows base-model breach / worst case over the robust set / breach with zero
+premium (all in %), then **CE − cash (%/yr, annualised)**. The deployed strategy on us_mkt is the premium-robust DP.
+
+{{ T.exec_compact_us_mkt }}
+
+## 1. The mandate and how we read it
+
+We start with {{ M.W0 | musd(0) }} in cash and trade daily between a diversified equity portfolio and cash
+(weight φ ∈ [0, 1]; no leverage, no shorting; costs negligible). The horizon T runs from {{ M.T_min_years | f(0) }} to
+{{ M.T_max_years | f(0) }} years and is known at the start. The objective is the certainty equivalent
+CE = (E[W_T^{1−γ}])^{1/(1−γ)} with γ = {{ M.gamma | f(0) }}, subject to P(W_T < {{ M.K | musd(0) }}) ≤
+{{ M.breach_target | pct(0) }} from every starting condition. Our interpretations:
+
+- **The probability is model-based, and the model is uncertain.** The constraint must hold under our estimated model
+  **and** under each of four robust alternatives (§3, §6). We call the maximum over these five the *worst-case breach*.
+  Stress scenarios outside that set are reported separately, including where they fail.
+- **A starting condition is (σ_0, r_0).** σ_0 is the model's one-day-ahead conditional volatility and r_0 the short
+  rate, both observable at t = 0. Under our model these two numbers are the complete state (§3.3). The committee can
+  switch on at any (σ_0, r_0). We report five named states (the 10th, 50th, 90th and 99th percentiles of the asset's own
+  σ history, plus its historical maximum) and a dense grid.
+- **CE is reported for the same starting conditions**, as the excess over the cash return: CE − cash (%/yr,
+  annualised). This is the strategy's annualised CE minus that of holding cash on the same simulated rate paths.
+
+## 2. Data
+
+**Sources.** Kenneth French Data Library: daily and monthly Fama–French factors (market = Mkt-RF + RF) and the
+value-weighted 10-industry daily portfolios, {{ N.data.first }} to {{ N.data.last }} ({{ N.data.n_days | i }}
+trading days). The SHA-256 of each file is in `data/raw/MANIFEST.json` and Appendix A. Nothing else is used.
+
+**What the checks found** (`scripts/01_load_check.py` → `reports/data_check/data_check.json`):
+
+- **Risk-free precision.** Daily RF is published to {{ N.data.rf_resolution | pct(2) }} per day (about {{ (N.data.rf_resolution * 252) | pct(1) }}/yr
+  resolution) and is constant within each month. It is zero on {{ N.data.rf_zero_days | i }} days, and in
+  {{ N.data.rf_months_all_zero_daily }} months every daily value is zero while the monthly rate is positive. We
+  therefore fit the rate model to the **monthly** series and use daily RF only for cash accounting. Compounded daily
+  vs monthly RF never differs by more than the rounding bound ({{ N.data.rf_n_flagged }} months flagged).
+- **Negative rates.** The monthly RF is negative in {{ N.data.rf_n_negative_months }} months
+  ({{ N.data.rf_negative_months_first }} to {{ N.data.rf_negative_months_last }}). The rate model's 1954 start excludes
+  them, and it does not floor rates at zero.
+- **Market return construction.** Daily (Mkt-RF + RF) compounded to months matches the monthly file with a mean
+  absolute difference of {{ N.data.xcheck_mean | pct(3) }} (max {{ N.data.xcheck_max | pct(2) }},
+  {{ N.data.xcheck_max_month }}).
+- **Closure gaps.** {{ N.data.n_gaps }} gaps exceed {{ S.gap_report_days }} calendar days (the longest, {{ N.data.gap_max_days }} days, is the
+  1933 bank holiday). Returns after a gap are scaled by √(business days spanned) for fitting only.
+- **Saturday trading** until {{ N.data.sat_last_year }} (up to {{ N.data.max_saturdays }} Saturdays a year) and
+  **1968** ({{ N.data.days_1968 }} days: the NYSE closed on Wednesdays during the paperwork crisis) explain every
+  out-of-range year. The model runs in trading-day time.
+- **Tails.** The largest daily move is {{ N.data.extreme_r | pct(1) }} ({{ N.data.extreme_day }}). Excess kurtosis of
+  daily log excess returns is {{ N.data.full_exkurt | f(1) }}. The worst 252-day return is
+  {{ N.data.worst_252 | pct(1) }} (ending {{ N.data.worst_252_end }}). Over the full sample,
+  {{ N.data.share_252_below_5 | pct(1) }} of 252-day windows lose more than 5%.
+
+**Which data feed which estimate.**
+
+{{ T.data_windows }}
+
+## 3. Model
+
+### 3.1 Equity: GJR-GARCH(1,1) with Student-t innovations
+
+The modelling variable is the daily log excess return x = log(1+r) − log(1+rf). Its conditional variance follows
+GJR-GARCH(1,1) with leverage, and its innovations are standardised t. The conditional arithmetic premium μ_e is constant.
+We compared four models on us_mkt:
+
+{{ T.model_comparison_us_mkt }}
+
+EGARCH-t has the best BIC, but its simulated 1–2-year tails are almost identical to GJR-t's, so the floor would not
+change. GJR-t has a closed-form persistence and unconditional variance, and its σ_0 is a transparent state. GARCH-t is
+kept as an alternative data-generating process in the robust set. Its slow vol mean reversion produces the fat
+multi-year tails that GJR misses. Fitted us_mkt values: ν = {{ N.model.nu | f(2) }}, persistence
+{{ N.model.persistence | f(4) }} (half-life {{ N.model.half_life | f(0) }} days), unconditional volatility
+{{ N.model.uncond_vol | pct(1) }}.
+
+### 3.2 Premium and its shrinkage
+
+The sample mean excess return is {{ N.model.premium.raw_annual | pct(2) }} per year with a standard error of
+{{ N.model.premium.se_annual | pct(2) }} ({{ N.model.premium.years | f(0) }} years). We shrink it
+{{ N.model.premium.shrink_weight | pct(0) }} toward zero and use **{{ N.model.premium.annual_excess_used | pct(2) }}**.
+The raw estimate is noisy, and the floor fails when the premium is overstated, not when it is understated. The same
+procedure gives {{ N.fallback.premium_min | pct(2) }} to {{ N.fallback.premium_max | pct(2) }} across the
+{{ N.deploy.n_assets }} assets. Because the premium is the input the DP leans on most, we calibrate the DP against a
+halved premium and test it with a zero premium (§4.6, §6.3).
+
+### 3.3 Rates, and why (σ_0, r_0) is the complete state
+
+The short rate is Vasicek, fitted by OLS AR(1) on monthly rates from {{ N.model.rate.start }} to
+{{ N.model.rate.end }} ({{ N.model.rate.n_months }} months). The 1954 start follows the Treasury–Fed Accord. Estimates:
+κ = {{ N.model.rate.kappa | f(2) }} (SE {{ N.model.rate.se_kappa | f(2) }}), θ = {{ N.model.rate.theta | pct(2) }},
+s = {{ N.model.rate.s | pct(2) }}, half-life {{ N.model.rate.half_life_years | f(1) }} years. The equity–rate
+correlation is ρ = {{ N.model.rate.rho | f(2) }} (same-month pairing). Under GJR-GARCH the next day's return
+distribution depends on the past only through σ_t², and the sign of the last shock is already in it. Under Vasicek the
+rate's future depends only on r_t. So (σ_0, r_0) is everything the model can use at t = 0. The named states for us_mkt
+are calm {{ ST.calm.sigma0 | pct(1) }}, normal {{ ST.normal.sigma0 | pct(1) }}, elevated
+{{ ST.elevated.sigma0 | pct(1) }}, crisis {{ ST.crisis.sigma0 | pct(1) }} and extreme {{ ST.extreme.sigma0 | pct(1) }}
+(the {{ N.data.extreme_day }} close), with r_0 = {{ ST.normal.r0 | pct(2) }} (the median). As checks: the model's σ_0
+on 2020-03-16 is {{ N.model.anchors["2020-03-16"] | pct(1) }} and on 2008-11-20 {{ N.model.anchors["2008-11-20"] | pct(1) }}.
+
+### 3.4 Validation
+
+- **Stylised facts.** Simulated annual volatility is {{ N.model.stylised.sim_vol | pct(1) }} against
+  {{ N.model.stylised.data_vol | pct(1) }} in the data. The 2% quantile of the 1-year cumulative excess log return is
+  {{ N.model.stylised.q2_252_sim | pct(0) }} in the model and {{ N.model.stylised.q2_252_data | pct(0) }} in the data.
+  At 2 years it is {{ N.model.stylised.q2_504_sim | pct(0) }} against {{ N.model.stylised.q2_504_data | pct(0) }}.
+- **Conditional PIT test.** Each quarterly start is forecast with parameters estimated only on data before it
+  (expanding window). We then count how often the realised 1- and 2-year return falls below the model's 2% quantile.
+  Overall: {{ N.model.pit.H252.freq | pct(1) }} at 1 year (95% CI {{ N.model.pit.H252.ci_lo | pct(1) }}–{{ N.model.pit.H252.ci_hi | pct(1) }},
+  effective n {{ N.model.pit.H252.n_eff | f(0) }}) and {{ N.model.pit.H504.freq | pct(1) }} at 2 years
+  (CI {{ N.model.pit.H504.ci_lo | pct(1) }}–{{ N.model.pit.H504.ci_hi | pct(1) }}). No bucket or era rejects.
+  **The test has low power:** per-bucket confidence intervals are {{ N.model.pit_bucket_ci_width_min | pp(0) }} to
+  {{ N.model.pit_bucket_ci_width_max | pp(0) }} percentage points wide, and crisis starts are too few to test. The
+  elevated-volatility point estimate at 1 year is {{ N.model.pit_elevated_252 | pct(1) }}. This is one reason we tune
+  to a target below 2%. Full table: Appendix B.
+- **Daily VaR backtest of the t tail** (`scripts/02b_var_backtest.py`). The fitted ν produces too many 1% and 0.1%
+  exceedances, meaning the left tail is heavier than a symmetric t. That asymmetry is why filtered historical simulation,
+  which resamples the empirical residuals, is in the robust set. ν = {{ S.fat_nu_min }} produces too few exceedances, meaning it is too
+  heavy. So "fat tails (ν = {{ S.fat_nu_min }})" is a stress test, not part of the robust set.
+- **Parameter stability.** Across sub-samples (1926–1962, from 1963, 1963–1999, from 1990, 2000 onward), persistence
+  ranges from {{ N.model.subsample_persistence_min | f(3) }} to {{ N.model.subsample_persistence_max | f(3) }} and ν
+  from {{ N.model.subsample_nu_min | f(1) }} to {{ N.model.subsample_nu_max | f(1) }} (Appendix B). The parameter
+  uncertainty is carried into the robust set as a "parameter draws" scenario.
+
+### 3.5 Known weaknesses
+
+- **Thin unconditional long-horizon tail.** GJR's volatility mean-reverts in weeks, so it cannot generate 1929–32-style
+  multi-year drawdowns (2-year 2% quantile: see §3.4). This matters less for a dynamic strategy than for a static one.
+  Our strategies re-read σ_t daily and de-risk as a drawdown develops, so a slow crash is met with less equity. The
+  danger is a fast crash, which is why gap risk drives the design (§4) and the stress tests (§6).
+- **ind_telcm.** Its PIT rejects as too thin at 1 year ({{ N.deploy.flags.ind_telcm.pit_rejections }}). The window is
+  dominated by the 2000–02 telecom bust. The deployment rule routes it to CPPI.
+- **Automatic fallback window.** If the full-history fit is near-integrated (persistence ≥
+  {{ S.fallback_max_persistence }}) or fewer than {{ S.fallback_min_draw_valid | pct(0) }} of parameter draws are
+  valid, all equity estimation for that asset restarts at {{ S.fallback_start }}. It fired for
+  {{ N.fallback.n_triggered }} assets ({{ N.fallback.assets | names }}). A **rule** beats hand-picked per-asset dates
+  (we first used 1984 for telecom) because the committee will run the procedure on assets nobody has looked at. A
+  hand-picked date also embeds hindsight about where the regime broke.
+
+{{ T.assets_model }}
+
+## 4. Strategy design (brief Q1)
+
+### 4.1 The family and the logic connecting them
+
+1. **Merton (lectures 1–2).** With CRRA and i.i.d. returns, the optimal weight is φ = μ_e/(γσ²), constant and myopic.
+   It ignores the floor: on us_mkt it breaches {{ U.merton.normal.T1.breach_base | pct(1) }} of the time from a normal
+   start. It is our no-floor benchmark.
+2. **CPPI.** Invest m × (W − floor PV) in equity. In continuous time it never breaches. In daily trading it breaches
+   only when one day's loss exceeds 1/m: **gap risk**.
+3. **Gap-aware CPPI.** Set m_t = 1/(z·σ_t), so the cushion always survives a z-standard-deviation day. The multiplier
+   falls automatically when volatility rises.
+4. **OBPI (lecture 2).** Under complete markets the CRRA-optimal payoff with a hard floor is max(K, X_T), where X is
+   unconstrained Merton wealth. We replicate it daily, re-anchoring on actual wealth each day.
+5. **DP with a breach penalty (lectures 1, 3).** We solve max E[U(W_T) − λ·1{W_T < K}] by backward induction on the
+   state (days left, W/floor PV, σ_t²). This is the Lagrangian of the mandate itself, rather than a rule that only
+   approximates it. Then we pick λ per (σ_0, T) so the worst-case breach meets the target.
+6. **Premium-robust DP.** The same solved policies, but λ is calibrated against the robust set **plus a halved
+   premium**.
+
+### 4.2 Floor present value: a conservative discount
+
+Cash earns a floating rate. A strategy that has locked into cash still ends below K if rates fall afterwards: the floor's
+PV rises and cash does not catch up. That is reinvestment risk, and no cash/equity strategy can hedge it. Every floor
+strategy therefore protects F̃_t = K·exp(−q_α), where q_α is the α = {{ S.floor_alpha | pct(1) }} quantile of log cash
+growth over the remaining horizon under the investor's own Vasicek model. At the median rate this floor sits
+{{ N.policy.floor_premium_T1 | pct(1) }} above K at T = 1 and {{ N.policy.floor_premium_T2 | pct(1) }} above K at
+T = 2. It costs little CE because every knob is re-tuned to it.
+
+### 4.3 Robust tuning
+
+Each knob (m, z, the OBPI floor level, the DP's λ) is set per (σ_0, T) so that the **maximum** breach over the robust
+set is at most {{ S.tune_target | pct(2) }}. The robust set is: base model, GARCH-t as the data-generating process,
+filtered historical simulation, parameter-uncertainty draws, and persistent volatility. The {{ S.tune_target | pct(2) }}
+target leaves room below {{ M.breach_target | pct(0) }} for Monte Carlo error, selection noise and the weak PIT. The
+breach-versus-knob crossing is found with a logistic fit over all candidates rather than by picking the last grid point
+under the target, which is biased low. Knobs are tuned on one random seed ({{ S.n_paths_tune | i }} paths) and every
+reported number uses an independent evaluation seed ({{ S.n_paths_eval | i }} paths).
+
+### 4.4 The CE-versus-breach frontier
+
+{{ figure("frontier", "CE − cash against breach") }}
+
+At any breach level the DP's frontier lies above every simple family's. Validation test V6 compares like with like: for
+each tuned comparator it takes the best DP λ with *no higher* base breach. The DP earns more in
+{{ N.validation.V6f_n_ge }} of {{ N.validation.V6f_n_comparable }} comparable cells, by
+{{ N.validation.V6f_dce_min | f(0) }} to {{ N.validation.V6f_dce_max | f(0) }} bp/yr.
+
+### 4.5 Why the DP, and why a fallback
+
+The DP is the only design that optimises the stated objective under the stated constraint. The others are rules that
+satisfy the constraint and hope CE follows. Its advantage comes from what the rules cannot do. It holds equity close to
+the floor when volatility is low and the cushion can absorb a bad day. It cuts equity sharply when volatility is high
+even with a large cushion (Figure 3). The price is model dependence: the DP believes its premium and volatility
+dynamics. Gap-aware CPPI uses only σ_t and the floor, so it is the right tool when the model is in doubt. Hence the
+fallback rule (§6.6).
+
+The DP was validated on us_mkt: Merton limit (V1) {{ "pass" if N.validation.V1_pass else "fail" }}; grid convergence
+(V4) {{ "pass" if N.validation.V4_pass else "fail" }}; DP breach recursion vs Monte Carlo with the rate held constant
+(V5) {{ "pass" if N.validation.V5_pass_rate_const else "fail" }}. Under stochastic rates,
+{{ N.validation.V5_n_fail_base }} of {{ N.validation.V5_n }} V5 cells fail, all at T = 2. That gap is rate risk, which
+the fixed-rate DP does not model; we report it rather than tune it away.
+
+### 4.6 Dead ends
+
+- **Base-only tuning.** Knobs tuned on the base model alone reach worst-case breaches of
+  {{ N.dead_ends.base_only_worst_min | pct(1) }}–{{ N.dead_ends.base_only_worst_max | pct(1) }} across the robust set.
+  This is why we tune on the worst case.
+- **Untuned OBPI (floor = K).** Daily rebalancing leaves half the mass pinned at K just below it: base breach up to
+  {{ N.dead_ends["obpi_merton|untuned"].base_max | pct(1) }}.
+- **A 2nd-percentile floor discount.** It was proposed as "more conservative", but it was looser than the floor already
+  in use and would have roughly doubled breaches. We moved to the {{ S.floor_alpha | pct(1) }} quantile instead (DECISIONS, 2026-11-21).
+- **Last-candidate tuning bias**, replaced by the logistic crossing. **A quick-run (5k-path) worst case above target**
+  turned out to be noise at {{ S.n_paths_eval | i }} paths.
+- **OBPI tracking drift and unbounded simulated variance.** Carrying the replicating portfolio forward let φ stay
+  near 1 through very large down days. Daily re-anchoring fixed it. GARCH-t paths without a variance cap reached volatilities far beyond anything in the data, so we capped simulated volatility at {{ S.sigma_cap_mult }} × the asset's historical maximum.
+- **DP calibrated at the base premium only.** Under a zero premium it breached up to
+  {{ N.stress.dp_base_mu_zero_max | pct(2) }} ({{ N.stress.dp_base_mu_zero_argmax[0] }}, T =
+  {{ N.stress.dp_base_mu_zero_argmax[1] }}). This led to the premium-robust calibration.
+
+## 5. Expected performance (brief Q2)
+
+{{ T.performance_dp_us_mkt }}
+
+q5/q50/q95 are terminal-wealth quantiles in $M. "Near floor" is P(K ≤ W_T < (1 + {{ S.near_floor_band | pct(0) }})K) and "below 100" is P(W_T <
+{{ M.W0 | musd(0) }}), both from a {{ S.terminal_subsample | i }}-path subsample. φ is the average equity weight, and turnover is the average
+Σ|Δφ| per path. Trading costs are negligible per the mandate.
+
+**What to expect.** From a calm or normal start the DP earns about
+{{ dp.normal.T1.ce_xcash | pct(1) }} per year over cash, with average equity weight
+{{ dp.normal.T1.phi_avg | f(2) }} and median wealth {{ dp.normal.T2.q50 | musd(1) }} after two years. From a crisis or
+extreme start it holds much less equity at first (average φ {{ dp.extreme.T1.phi_avg | f(2) }} at T = 1 from the
+extreme state), so CE − cash falls to {{ dp.extreme.T1.ce_xcash | pct(1) }} at T = 1. Longer horizons recover more
+({{ dp.extreme.T2.ce_xcash | pct(1) }} at T = 2), because volatility mean-reverts and the strategy has time to re-risk.
+Across states, {{ N.perf.near_floor_min | pct(0) }}–{{ N.perf.near_floor_max | pct(0) }} of outcomes end just above the
+floor: the DP spends cushion when it is cheap and parks near the floor when it is not. The committee should expect a
+sizeable minority of years in which the result is "floor plus a little".
+
+{{ figure("cdf", "Terminal wealth") }}
+
+{{ figure("policy", "The DP policy") }}
+
+**Reading the policy.** Equity is the white-to-yellow region. (1) **Away from the floor and at low volatility** the DP
+is fully invested, as Merton would be ({{ N.policy.phi_y15_normal | f(2) }} at y = 1.5, normal σ). (2) **Volatility
+alone de-risks**: at the same cushion, φ drops to {{ N.policy.phi_y15_crisis | f(2) }} at crisis-level σ, because one
+bad day can then consume the cushion. (3) **Near the floor** the weight falls fast as the cushion thins. Just below the
+floor the DP gambles (high φ): once a breach is likely the penalty is mostly paid, so variance helps. This is a known
+feature of the non-concave Lagrangian problem. It is rare in practice because the policy rarely lets wealth get there.
+(4) **Close to the horizon** the no-trade boundary sharpens.
+
+## 6. Why the floor holds from every starting condition (brief Q3)
+
+### 6.1 Worst case over the robust set
+
+{{ figure("heatmap", "Worst-case breach by starting state and horizon") }}
+
+The DP's worst-case breach is at most **{{ H.dp_worst_max | pct }}** across all named states and both horizons. For
+gap-aware CPPI it is {{ H.cg_worst_max | pct }} and for OBPI {{ H.ob_worst_max | pct }}. The DP's λ was solved and
+calibrated at T ∈ {1, 2} for the named states; between them it uses the more conservative neighbouring λ (it never
+interpolates λ). Gap-aware CPPI is also evaluated on a dense σ_0 × r_0 grid and at the intermediate horizons (the app reads these rows from `results/mc/summary.parquet`).
+
+### 6.2 Monte Carlo error
+
+With {{ S.n_paths_eval | i }} evaluation paths, the standard error of a 2% breach estimate is
+{{ S.mc_se_2pct_50k | pp(3) }} percentage points ({{ S.mc_se_2pct_20k | pp(3) }} at the
+{{ S.n_paths_eval_ind | i }} paths used for industries). The gap between our worst case and 2% is many standard errors.
+The tuning seed and evaluation seed are independent, so the reported breach is not the one the tuner minimised.
+
+### 6.3 Stress tests outside the tuning set
+
+{{ figure("stress", "Stress tests") }}
+
+{{ T.stress_us_mkt }}
+
+**Failures (breach > {{ M.breach_target | pct(0) }}), us_mkt:**
+
+{{ T.stress_failures_us_mkt }}
+
+- **Premium halved / zero.** The premium-robust DP stays below {{ M.breach_target | pct(0) }} in every cell (zero
+  premium: max {{ N.stress.dp.mu_zero | pct }}; the thinnest margin is {{ N.stress.dp_mu_zero_min_margin | pp(2) }}
+  percentage points). The rule-based strategies barely react to the premium (gap-aware CPPI ≤ {{ N.stress.cppi_gap.mu_zero | pct }}).
+- **Fat tails (ν = {{ S.fat_nu_min }}).** The DP exceeds {{ M.breach_target | pct(0) }} in {{ N.stress.n_fail["Premium-robust DP"] }}
+  cells (crisis and extreme starts at T = 1). Gap-aware CPPI exceeds it in {{ N.stress.n_fail["Gap-aware CPPI"] }} of
+  {{ cg.n_cells }} cells. OBPI does not, because its exposure is bounded by the Merton weight. The daily VaR backtest rejects ν = {{ S.fat_nu_min }}
+  as too heavy, so this stress is more severe than the data support, but it marks the edge of the claim.
+- **Jumps (a {{ S.jump_return | pct(0) }} day with probability {{ S.jump_prob | pct(0) }} per path-year).** DP max {{ N.stress.dp.jump | pct }}.
+
+### 6.4 Where breaches come from
+
+{{ T.breach_decomposition_us_mkt }}
+
+A breach is classified by the day the cushion was last crossed. *Gap*: one day's equity loss exceeded a cushion that
+could absorb a one-σ move. *Gradual*: an eroded cushion. *Rate*: the floor PV rose or cash under-earned. Gap-aware
+CPPI's breaches are almost all gaps, which is the residual risk a daily-rebalanced floor cannot remove. The DP's are
+split between gaps and gradual erosion, because it deliberately keeps some equity near the floor. At T = 2 about
+{{ N.decomp_dp.T2.rate | pct(0) }} are rate-driven: the fixed-rate DP does not see rate risk (§7).
+
+### 6.5 Historical backtest
+
+We run each strategy from every month-end start since the first refit, with the investor re-estimated every {{ S.bt_refit_years | f(0) }} years
+on past data only. The table shows the gap-aware CPPI and OBPI rows at T = 1 and 2 (overall and by σ_0 bucket; by
+decade in Appendix B):
+
+{{ T.backtest_us_mkt }}
+
+**What this can and cannot show.** Windows overlap, so {{ N.backtest["Gap-aware CPPI|T1"].n | i }} start dates carry
+only about {{ N.backtest["Gap-aware CPPI|T1"].n_eff | f(0) }} independent 1-year observations. The 95% upper bound on
+the realised breach rate is {{ N.backtest["Gap-aware CPPI|T1"].hi | pct(1) }} overall and
+{{ N.backtest.crisis_hi_T1 | pct(0) }} for crisis starts (effective n {{ N.backtest.crisis_n_eff_T1 | f(0) }}). The
+backtest can refute a badly wrong model, as it does for the no-floor Merton rule
+({{ N.backtest["No-floor Merton|T1"].breach | pct(1) }}). It cannot confirm a 2% bound. The knobs also carry a mild
+look-ahead (tuned on the full-sample model).
+{% if not N.backtest.dp_backtested %}**The DP has not been backtested**: its policy is solved on full-sample parameters, so a fair historical test needs re-solving at each refit date. This is further work (§8).{% endif %}
+
+### 6.6 External validity: other assets and the deployment rule
+
+The committee will run the same procedure on other assets. We ran the full procedure on the 10 industry portfolios.
+Each asset gets its own estimates, states, tuning and λ calibration. No constants carry over from us_mkt.
+
+**Deployment rule** (`src/gf/deployment.py`, decided before results were seen). Deploy gap-aware CPPI instead of the DP
+if (a) the fallback estimation window was triggered, (b) fewer than {{ S.fallback_min_draw_valid | pct(0) }} of
+parameter draws are valid after the fallback, or (c) the PIT test rejects at 1 or 2 years.
+
+{{ T.deployment }}
+
+{{ figure("industries", "Deployed strategy on every asset") }}
+
+{{ T.industries }}
+
+- **The deployed strategy's worst case stays below {{ M.breach_target | pct(0) }} on every asset evaluated** (max
+  {{ N.ind.deployed_worst_max | pct }}, {{ N.ind.deployed_worst_argmax | name }}). It is above the
+  {{ S.tune_target | pct(2) }} tuning target in some industry cells. Industries use {{ S.n_paths_tune_ind | i }} tuning
+  paths, so tuning noise is larger there.
+- **DP on industries** ({{ N.dp_available | names }}): the DP's CE − cash beats gap-aware CPPI in
+  {{ N.ind.dp_above_cg_cells }} of {{ N.ind.dp_cells }} industry cells (by {{ N.ind.dp_vs_cg_min | bp }} to
+  {{ N.ind.dp_vs_cg_max | bp }} bp/yr).
+- **DP misses and the rule.** {% if N.ind.n_dp_misses == 0 %}The DP has no cell above {{ M.breach_target | pct(0) }} under the robust set or zero premium.{% else %}The DP exceeds {{ M.breach_target | pct(0) }} in {{ N.ind.n_dp_misses }} industry cell(s) under the robust set or a zero premium:{% for m in N.ind.dp_misses %} {{ m.asset | name }} {{ m.state }} T = {{ m.T }} under {{ m.scenario }} ({{ m.breach | pct }}){% if not loop.last %};{% endif %}{% endfor %}. The rule routes {{ N.ind.n_dp_misses_caught }} of {{ N.ind.n_dp_misses }} of these assets to CPPI{% if N.ind.n_dp_misses_caught == N.ind.n_dp_misses %}, so **the deployed strategy never contains a DP miss**{% endif %}.{% endif %}
+{% if N.ind.dp_thin_mu_zero %}- **Thin margins under a zero premium** (deployed DP within two standard errors of {{ M.breach_target | pct(0) }}):{% for m in N.ind.dp_thin_mu_zero %} {{ m.asset | name }} {{ m.state }} T = {{ m.T }} {{ m.breach | pct }} (SE {{ m.se | pp(2) }} pp){% if not loop.last %};{% endif %}{% endfor %}. These count as passes, but they can't be distinguished from the limit.
+{% endif %}
+{% if N.ind.dp_fat_n %}- **Fat tails (ν = {{ S.fat_nu_min }}) on industries.** The deployed DP exceeds {{ M.breach_target | pct(0) }} in {{ N.ind.dp_fat_n }} cells on {{ N.ind.dp_fat_assets | names }} (max {{ N.ind.dp_fat_max | pct }}), mostly crisis/extreme starts. This is the same failure as on us_mkt and is outside the robust set (§6.3, §7).
+{% endif %}
+- **Simple rules on all industries** (SPEC 03 robust set): gap-aware CPPI worst case max {{ N.ind.cppi_gap_worst_max | pct }},
+  OBPI {{ N.ind.obpi_worst_max | pct }}.
+{% if N.dp_missing %}- **Not yet evaluated with the DP:** {{ N.dp_missing | names }}. For these assets only CPPI/OBPI rows are shown, and some lack the full robust set ({{ N.ind.cppi_gap_n_robust_min }} scenarios).{% endif %}
+
+**A cost of the fallback.** On flagged assets, gap-aware CPPI can earn *less than cash* from crisis or extreme starts
+(deployed minimum CE − cash {{ N.ind.deployed_ce_min | pct }}, {{ N.ind.deployed_ce_min_where | name }}). This is not
+a lock into cash: only {{ N.cppi_neg.neg_locked_min | pct(1) }}–{{ N.cppi_neg.neg_locked_max | pct(1) }} of paths
+hold φ ≈ 0 at the end. It is a *soft lock-in*. With m = 1/(zσ), an unclipped cushion has a constant daily volatility of
+1/z ({{ (1 / N.cppi_neg.neg_z_max) | pct(0) }}–{{ (1 / N.cppi_neg.neg_z_min) | pct(0) }} in these cells), so most paths bleed their cushion within weeks of a high-volatility start. They then end just above the
+conservative floor: {{ N.cppi_neg.neg_near_min | pct(0) }}–{{ N.cppi_neg.neg_near_max | pct(0) }} of paths finish within
+{{ S.near_floor_band | pct(0) }} of it, against {{ N.cppi_neg.pos_near_median | pct(0) }} in other cells. Mean wealth still beats cash; the γ = 2 CE
+does not.
+
+{{ T.cppi_gap_negative_ce }}
+
+## 7. When to use it, and when not (brief Q4)
+
+**Use it** on a broad equity portfolio with a long, stable daily history. That means the asset's diagnostics are clean
+(no fallback window, valid parameter draws, PIT not rejected), the horizon is 1–2 years, and the strategy can trade
+every day.
+
+**Do not rely on it** in these cases:
+
+1. **Crash risk beyond the data.** Under ν = {{ S.fat_nu_min }} tails both the DP and gap-aware CPPI exceed
+   {{ M.breach_target | pct(0) }} from some starts (DP up to {{ N.stress.dp.fat_tails | pct }} from crisis/extreme starts
+   at T = 1 on us_mkt; {{ N.ind.dp_fat_n }} industry cells, up to {{ N.ind.dp_fat_max | pct }}). If the committee believes single-day losses much larger than 1987 are plausible, use OBPI or a lower
+   tuning target.
+2. **A premium far below our estimate.** The premium-robust DP holds at zero premium on us_mkt, but with a thin margin
+   in some cells ({{ N.stress.dp_mu_zero_min_margin | pp(2) }} pp on us_mkt; {% for m in N.ind.dp_thin_mu_zero %}{{ m.asset | name }} {{ m.breach | pct }}{% if not loop.last %}, {% endif %}{% endfor %}) and not on every industry. If the premium is in
+   serious doubt, deploy gap-aware CPPI: it is nearly premium-insensitive.
+3. **Assets flagged by the diagnostics** (fallback window, < {{ S.fallback_min_draw_valid | pct(0) }} valid draws, PIT
+   rejection). The rule already sends these to CPPI.
+4. **Short or structurally broken histories.** Persistence near 1 means level shifts are being read as volatility.
+   A fallback window helps, but on a short window the PIT test has too few independent observations to detect miscalibration.
+5. **Very short horizons from crisis starts.** The strategy is mostly cash and CE − cash is small
+   ({{ dp.extreme.T1.ce_xcash | pct(1) }} at T = 1 from the extreme state; below cash for CPPI on some industries).
+6. **Large rate moves.** The DP holds the rate fixed. Rate-driven breaches are {{ N.decomp_dp.T2.rate | pct(0) }} of
+   its T = 2 breaches, and the conservative floor is the only defence.
+7. **Anything that breaks daily trading**: overnight gaps larger than the model's one-day tail, trading halts, or real
+   transaction costs. The breach control relies on rebalancing before the cushion is gone.
+
+## 8. Advice (brief Q5)
+
+- **Re-estimate** the model and re-run tuning and calibration at least annually, and immediately after a volatility
+  regime change that moves σ_t outside the range of the named states. The pipeline is a single procedure
+  (`scripts/01`–`09`), so this is a re-run, not a research project.
+- **Check the diagnostics before switching on**, every time: fallback trigger, valid-draw share, PIT verdict. The
+  deployment rule is code (`gf.deployment.deployment_choice`) and should be run, not remembered.
+- **If the premium is doubted, deploy the CPPI fallback.** It gives up {{ H.adv_best_simple_min | bp }} to
+  {{ H.adv_best_simple_max | bp }} bp/yr of CE on us_mkt but removes most premium dependence.
+- **Remove reinvestment risk with a horizon-matched zero-coupon bond** (outside the current mandate). The floor would
+  then be K × the bond price, and the conservative discount and rate-driven breaches would disappear.
+- **Extensions:** the rate as a fourth DP state variable; full DP validation (V1–V6) on every asset; a DP backtest with
+  re-solving at each refit; a finer λ grid (the current grid overshoots the target, costing CE); transaction costs.
+
+<div class="pb"></div>
+
+## Appendix A: Reproducibility
+
+**Fast path** (from committed results, minutes): `python scripts/07_report_numbers.py` then
+`python scripts/08_build_report.py` rebuilds `results/report/numbers.json`, every table, every figure,
+`deliverables/report.pdf` and `deliverables/deck.pdf`. **Full path** (several hours on 8 cores; run times per stage in DECISIONS.md): stages 01–06 as listed in
+DECISIONS.md and README.md, then 07–09.
+
+- **Seeds.** Model fitting {{ S.model_seed }}; Monte Carlo master seed {{ S.master_seed }}. Every cell's tuning and
+  evaluation seed is a hash of (master seed, asset, "tune"/"eval"), so all strategies in a cell share paths.
+  us_mkt: tune {{ N.repro.seeds.us_mkt.tune }}, eval {{ N.repro.seeds.us_mkt.eval }}.
+- **Paths.** Tuning {{ S.n_paths_tune | i }} (us_mkt) / {{ S.n_paths_tune_ind | i }} (industries); evaluation
+  {{ S.n_paths_eval | i }} / {{ S.n_paths_eval_ind | i }}.
+- **Data hashes** (SHA-256):
+{% for f in N.data.manifest %}  - `{{ f.file }}`: `{{ f.sha256 }}` ({{ f.first_date }} to {{ f.last_date }}, downloaded {{ f.download_date }})
+{% endfor %}
+- **Code.** SPEC 03 run at commit `{{ N.repro.git_commit_spec03 }}`; this report from the commit tagged in the
+  submission README.
+- **Every number in this report** is a key in `results/report/numbers.json` or a row in `results/report/tables/`,
+  written by `scripts/07_report_numbers.py`. The map from report items to keys is the table at the top of DECISIONS.md.
+
+## Appendix B: Additional tables
+
+**B.1 us_mkt: every strategy, named state and horizon** (breach in %, CE − cash in %/yr annualised).
+
+{{ T.us_mkt_all_cells }}
+
+**B.2 Industries: DP vs comparators, CE − cash difference (bp/yr).**
+
+{{ T.industries_dp_vs_comparators }}
+
+**B.3 PIT test, us_mkt, u < 2% (base model).**
+
+{{ T.pit_us_mkt }}
+
+**B.4 Parameter stability, us_mkt.**
+
+{{ T.param_stability_us_mkt }}
+
+**B.5 Historical backtest by decade, us_mkt.**
+
+{{ T.backtest_decade_us_mkt }}
+
+<div class="pb"></div>
+
+## Appendix C: AI-use statement
+
+<div class="placeholder" markdown="1">
+**[TEAM TO COMPLETE — placeholder skeleton]**
+
+**Tools used and for what.** [e.g. Claude Code for code, pipeline runs and drafting; which members used which tools.]
+
+**How material outputs were verified.** [unit tests (pytest suite); data validation gates (SPEC 01 checks); PIT
+calibration test; DP validation V1–V6; paired seeds between strategies and independent tune/evaluation seeds;
+reproducing rows (e.g. the comparator pairing check, the DP lookup reproduction); byte-identical numbers.json from a
+fresh clone.]
+
+**Material AI errors found, and decisions overruled** (from DECISIONS.md; expand each with date and what changed):
+
+- The pre-1952 annualisation claim was reversed: N = 252 *understates* calendar-year volatility before 1952; it does not overstate it.
+- The proposed 2nd-percentile floor discount would have been looser than the floor in use and roughly doubled breaches; rejected.
+- Hand-set per-asset start dates (1984 for telecom) were replaced by an automatic fallback-window rule.
+- OBPI tracking drift and unbounded simulated variance were found at a quick-run gate; fixed by daily re-anchoring and a variance cap.
+- Last-candidate tuning bias, replaced by a logistic crossing.
+- The 5k-path worst-case breach above target was Monte Carlo noise; it disappeared at full size.
+- The V6 optimality test was reworded to a breach-matched (frontier) comparison after the literal version had no comparable cells.
+- [others the team identifies]
+
+**AI lab notebook entries:** attached separately.
+</div>

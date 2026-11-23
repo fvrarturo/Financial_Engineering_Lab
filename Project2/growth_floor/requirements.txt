@@ -12,3 +12,6 @@ plotly==6.7.0
 dash==4.5.1
 dash-bootstrap-components==2.0.4
 kaleido==1.5.2
+Jinja2==3.1.6
+Markdown==3.7
+playwright==1.58.0   # then: python -m playwright install chromium (report/deck PDFs)

@@ -1,0 +1,4613 @@
+<!doctype html><html><head><meta charset='utf-8'><title>Growth with a floor</title><style>:root { --ink: #1b1f24; --muted: #5b6470; --rule: #d8dde3; --accent: #b3346d; --bg: #ffffff; }
+html { background: var(--bg); }
+body { font-family: "Source Serif Pro", Georgia, "Times New Roman", serif; color: var(--ink); background: var(--bg);
+       font-size: 10.4pt; line-height: 1.42; max-width: 178mm; margin: 0 auto; }
+h1 { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 21pt; margin: 0 0 4pt; letter-spacing: -0.01em; }
+h2 { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 14pt; margin: 18pt 0 6pt; padding-top: 4pt;
+     border-top: 1.5px solid var(--ink); break-after: avoid; }
+h3 { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 11pt; margin: 12pt 0 4pt; break-after: avoid; }
+p { margin: 4pt 0 6pt; text-align: left; }
+ul, ol { margin: 3pt 0 6pt; padding-left: 16pt; }
+li { margin: 1.5pt 0; }
+table { border-collapse: collapse; width: 100%; margin: 6pt 0 2pt; font-family: "Helvetica Neue", Arial, sans-serif;
+        font-size: 7.9pt; break-inside: avoid; }
+th { text-align: left; border-bottom: 1.2px solid var(--ink); padding: 2.5pt 4pt; font-weight: 600; }
+td { border-bottom: 0.5px solid var(--rule); padding: 2pt 4pt; font-variant-numeric: tabular-nums; }
+p.src, .src { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 7.4pt; color: var(--muted); margin: 1pt 0 8pt; }
+figure { margin: 8pt 0 10pt; break-inside: avoid; }
+figure img { width: 100%; }
+figcaption { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 8pt; color: var(--muted); margin-top: 2pt; }
+.box { border-left: 3px solid var(--accent); background: #fbf3f7; padding: 6pt 9pt; margin: 8pt 0; break-inside: avoid; }
+.placeholder { border: 1.5px dashed #c0392b; background: #fff6f5; padding: 6pt 9pt; margin: 8pt 0; }
+.meta { color: var(--muted); font-family: "Helvetica Neue", Arial, sans-serif; font-size: 9pt; margin-bottom: 10pt; }
+.pb { break-before: page; }
+code { font-family: Menlo, Consolas, monospace; font-size: 8.4pt; }
+strong { font-weight: 650; }
+</style></head><body><h1 id="growing-the-money-without-breaking-the-floor">Growing the money without breaking the floor</h1>
+<div class="meta">Investment committee report · MIT 15.456 hackathon · Team 27: Arturo Favara, Clarys Vignal, Nick Bernardini · Data through 2026-09-30</div>
+
+<h2 id="executive-summary">Executive summary</h2>
+<div class="box">
+<p><strong>Recommendation.</strong> Deploy the <strong>premium-robust dynamic-programming (DP) policy</strong>. It is a daily equity/cash rule
+solved for CRRA γ = 2 with a penalty on ending below $95M, and its penalty is
+calibrated so the floor holds even if the equity premium is half our estimate. A <strong>fallback rule</strong>, fixed before any
+strategy results were seen, deploys <strong>gap-aware CPPI</strong> on any asset whose model diagnostics are weak. On our
+11 test assets it routes 4 to CPPI (enrgy, telcm, shops, utils).</p>
+</div>
+<p><strong>Expected performance (US market, base model, 50,000 paths per cell).</strong> The certainty equivalent
+exceeds the cash return by <strong>1.06% to 2.48% per year (annualised)</strong>, depending on
+the starting state and horizon. That is <strong>+13 to +63 bp/yr
+more than the best simple floor rule</strong> in every one of the 10 named-state × horizon cells. The lowest
+figure is for an extreme-volatility start at T = 1, where the DP holds mostly cash.</p>
+<p><strong>Evidence that the floor holds.</strong> The breach probability is at most <strong>0.95%</strong> in every
+starting state, taking the worst of five models at each start: the estimated model plus four robust alternatives. The
+mandate's limit is 2%. On scenarios held out of tuning, the DP stays below
+2% with a zero equity premium (max 1.75%). It exceeds
+2% under very fat tails (ν = 3) from crisis and extreme starts at T = 1 (max
+3.45%). Gap-aware CPPI fails it too, in more cells, and the daily VaR backtest rejects ν = 3 as too
+heavy (§3).</p>
+<p><strong>Main limitations.</strong> (1) The DP spends the premium it is told exists; it is the most premium-sensitive strategy we
+tested. (2) The interest rate is fixed inside the DP; rate risk is handled only through a conservative floor. (3) The
+model's unconditional 1–2-year left tail is thinner than history; dynamic de-risking, not the model, carries the
+protection there. (4) The DP has not been run through the historical backtest (§6.5).</p>
+<p><strong>Summary table: us_mkt.</strong> Each cell shows base-model breach / worst case over the robust set / breach with zero
+premium (all in %), then <strong>CE − cash (%/yr, annualised)</strong>. The deployed strategy on us_mkt is the premium-robust DP.</p>
+<table>
+<thead>
+<tr>
+<th>start (σ0)</th>
+<th>T</th>
+<th>Deployed</th>
+<th>Gap-aware CPPI</th>
+<th>OBPI</th>
+<th>No-floor Merton</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>calm (8%)</td>
+<td>1</td>
+<td>0.14 / 0.22 / 0.34 · <strong>+2.48</strong></td>
+<td>0.25 / 1.30 / 0.30 · <strong>+2.35</strong></td>
+<td>0.22 / 0.80 / 0.27 · <strong>+2.08</strong></td>
+<td>12.87 / 15.55 / 19.76 · <strong>+2.10</strong></td>
+</tr>
+<tr>
+<td>calm (8%)</td>
+<td>2</td>
+<td>0.36 / 0.38 / 1.16 · <strong>+2.45</strong></td>
+<td>0.38 / 1.28 / 0.43 · <strong>+2.05</strong></td>
+<td>0.32 / 0.85 / 0.35 · <strong>+1.72</strong></td>
+<td>12.91 / 17.05 / 22.24 · <strong>+1.94</strong></td>
+</tr>
+<tr>
+<td>normal (12%)</td>
+<td>1</td>
+<td>0.79 / 0.88 / 1.75 · <strong>+2.38</strong></td>
+<td>0.26 / 1.28 / 0.31 · <strong>+2.17</strong></td>
+<td>0.22 / 0.80 / 0.26 · <strong>+1.97</strong></td>
+<td>14.02 / 17.64 / 20.88 · <strong>+1.89</strong></td>
+</tr>
+<tr>
+<td>normal (12%)</td>
+<td>2</td>
+<td>0.37 / 0.39 / 1.12 · <strong>+2.36</strong></td>
+<td>0.37 / 1.26 / 0.42 · <strong>+1.99</strong></td>
+<td>0.32 / 0.85 / 0.34 · <strong>+1.70</strong></td>
+<td>13.49 / 18.05 / 22.84 · <strong>+1.83</strong></td>
+</tr>
+<tr>
+<td>elevated (25%)</td>
+<td>1</td>
+<td>0.35 / 0.43 / 0.76 · <strong>+1.94</strong></td>
+<td>0.22 / 1.18 / 0.27 · <strong>+1.74</strong></td>
+<td>0.21 / 0.55 / 0.23 · <strong>+0.98</strong></td>
+<td>18.75 / 24.44 / 25.36 · <strong>+0.70</strong></td>
+</tr>
+<tr>
+<td>elevated (25%)</td>
+<td>2</td>
+<td>0.27 / 0.31 / 0.83 · <strong>+2.14</strong></td>
+<td>0.36 / 1.27 / 0.38 · <strong>+1.85</strong></td>
+<td>0.71 / 1.47 / 1.06 · <strong>+0.93</strong></td>
+<td>16.32 / 22.43 / 25.52 · <strong>+1.20</strong></td>
+</tr>
+<tr>
+<td>crisis (51%)</td>
+<td>1</td>
+<td>0.77 / 0.86 / 1.50 · <strong>+1.54</strong></td>
+<td>0.22 / 1.18 / 0.24 · <strong>+1.19</strong></td>
+<td>0.71 / 1.26 / 0.77 · <strong>+0.26</strong></td>
+<td>28.00 / 36.16 / 33.34 · <strong>-4.15</strong></td>
+</tr>
+<tr>
+<td>crisis (51%)</td>
+<td>2</td>
+<td>0.63 / 0.63 / 1.65 · <strong>+1.97</strong></td>
+<td>0.35 / 1.33 / 0.38 · <strong>+1.65</strong></td>
+<td>0.43 / 0.78 / 0.55 · <strong>+0.28</strong></td>
+<td>23.46 / 32.01 / 31.78 · <strong>-1.35</strong></td>
+</tr>
+<tr>
+<td>extreme (125%)</td>
+<td>1</td>
+<td>0.91 / 0.95 / 1.58 · <strong>+1.06</strong></td>
+<td>0.23 / 1.17 / 0.23 · <strong>+0.43</strong></td>
+<td>0.00 / 0.00 / 0.00 · <strong>+0.05</strong></td>
+<td>43.04 / 52.46 / 46.30 · <strong>-23.93</strong></td>
+</tr>
+<tr>
+<td>extreme (125%)</td>
+<td>2</td>
+<td>0.36 / 0.36 / 0.89 · <strong>+1.68</strong></td>
+<td>0.32 / 1.27 / 0.36 · <strong>+1.34</strong></td>
+<td>0.04 / 0.05 / 0.04 · <strong>+0.05</strong></td>
+<td>38.73 / 48.78 / 44.20 · <strong>-12.38</strong></td>
+</tr>
+</tbody>
+</table>
+<p class='src'>Source: scripts/07_report_numbers.py → results/report/tables/exec_compact_us_mkt.csv (from results/mc, results_dp_mu/mc summary.parquet)</p>
+
+<h2 id="1-the-mandate-and-how-we-read-it">1. The mandate and how we read it</h2>
+<p>We start with $100M in cash and trade daily between a diversified equity portfolio and cash
+(weight φ ∈ [0, 1]; no leverage, no shorting; costs negligible). The horizon T runs from 1 to
+2 years and is known at the start. The objective is the certainty equivalent
+CE = (E[W_T^{1−γ}])^{1/(1−γ)} with γ = 2, subject to P(W_T &lt; $95M) ≤
+2% from every starting condition. Our interpretations:</p>
+<ul>
+<li><strong>The probability is model-based, and the model is uncertain.</strong> The constraint must hold under our estimated model
+  <strong>and</strong> under each of four robust alternatives (§3, §6). We call the maximum over these five the <em>worst-case breach</em>.
+  Stress scenarios outside that set are reported separately, including where they fail.</li>
+<li><strong>A starting condition is (σ_0, r_0).</strong> σ_0 is the model's one-day-ahead conditional volatility and r_0 the short
+  rate, both observable at t = 0. Under our model these two numbers are the complete state (§3.3). The committee can
+  switch on at any (σ_0, r_0). We report five named states (the 10th, 50th, 90th and 99th percentiles of the asset's own
+  σ history, plus its historical maximum) and a dense grid.</li>
+<li><strong>CE is reported for the same starting conditions</strong>, as the excess over the cash return: CE − cash (%/yr,
+  annualised). This is the strategy's annualised CE minus that of holding cash on the same simulated rate paths.</li>
+</ul>
+<h2 id="2-data">2. Data</h2>
+<p><strong>Sources.</strong> Kenneth French Data Library: daily and monthly Fama–French factors (market = Mkt-RF + RF) and the
+value-weighted 10-industry daily portfolios, 1926-07-01 to 2026-09-30 (26,338
+trading days). The SHA-256 of each file is in <code>data/raw/MANIFEST.json</code> and Appendix A. Nothing else is used.</p>
+<p><strong>What the checks found</strong> (<code>scripts/01_load_check.py</code> → <code>reports/data_check/data_check.json</code>):</p>
+<ul>
+<li><strong>Risk-free precision.</strong> Daily RF is published to 0.01% per day (about 2.5%/yr
+  resolution) and is constant within each month. It is zero on 9,795 days, and in
+  315 months every daily value is zero while the monthly rate is positive. We
+  therefore fit the rate model to the <strong>monthly</strong> series and use daily RF only for cash accounting. Compounded daily
+  vs monthly RF never differs by more than the rounding bound (0 months flagged).</li>
+<li><strong>Negative rates.</strong> The monthly RF is negative in 12 months
+  (1933-02 to 1941-04). The rate model's 1954 start excludes
+  them, and it does not floor rates at zero.</li>
+<li><strong>Market return construction.</strong> Daily (Mkt-RF + RF) compounded to months matches the monthly file with a mean
+  absolute difference of 0.047% (max 0.40%,
+  1931-09).</li>
+<li><strong>Closure gaps.</strong> 9 gaps exceed 4 calendar days (the longest, 12 days, is the
+  1933 bank holiday). Returns after a gap are scaled by √(business days spanned) for fitting only.</li>
+<li><strong>Saturday trading</strong> until 1952 (up to 52 Saturdays a year) and
+  <strong>1968</strong> (226 days: the NYSE closed on Wednesdays during the paperwork crisis) explain every
+  out-of-range year. The model runs in trading-day time.</li>
+<li><strong>Tails.</strong> The largest daily move is -17.4% (1987-10-19). Excess kurtosis of
+  daily log excess returns is 17.0. The worst 252-day return is
+  -64.3% (ending 1932-05-31). Over the full sample,
+  19.1% of 252-day windows lose more than 5%.</li>
+</ul>
+<p><strong>Which data feed which estimate.</strong></p>
+<table>
+<thead>
+<tr>
+<th>estimate</th>
+<th>data</th>
+<th>dates</th>
+<th>source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Equity model (GJR-GARCH-t), premium, σ states, PIT</td>
+<td>us_mkt daily x = log(1+r) − log(1+rf)</td>
+<td>1926-07-01 to 2026-09-30</td>
+<td>params_us_mkt.json</td>
+</tr>
+<tr>
+<td>Equity model, industries without fallback</td>
+<td>ind_* daily (value-weighted)</td>
+<td>1926-07-01 to 2026-09-30</td>
+<td>params_{asset}.json</td>
+</tr>
+<tr>
+<td>Equity model, fallback industries</td>
+<td>ind_* daily (value-weighted)</td>
+<td>1990-01-01 to 2026-09-30</td>
+<td>params_{asset}.json → fallback</td>
+</tr>
+<tr>
+<td>Vasicek short-rate model, equity–rate ρ</td>
+<td>monthly FF RF → rf_ann</td>
+<td>1954-01 to 2026-09 (872 months)</td>
+<td>model_report.json → rate</td>
+</tr>
+<tr>
+<td>Cash accounting in backtests</td>
+<td>daily FF RF</td>
+<td>1926-07-01 to 2026-09-30</td>
+<td>data/processed/{asset}.parquet</td>
+</tr>
+<tr>
+<td>PIT test (expanding refits)</td>
+<td>us_mkt daily, quarterly starts</td>
+<td>first fit after 10 years; refit every 252 days</td>
+<td>results/model/pit_us_mkt.csv</td>
+</tr>
+<tr>
+<td>Historical backtest</td>
+<td>daily r, rf; investor refit every 5 years</td>
+<td>first refit after 10 years of data</td>
+<td>results/backtest/summary.parquet</td>
+</tr>
+</tbody>
+</table>
+<p class='src'>Source: scripts/07_report_numbers.py → results/report/tables/data_windows.csv (from results/model/*, reports/model/*, config.yaml)</p>
+
+<h2 id="3-model">3. Model</h2>
+<h3 id="31-equity-gjr-garch11-with-student-t-innovations">3.1 Equity: GJR-GARCH(1,1) with Student-t innovations</h3>
+<p>The modelling variable is the daily log excess return x = log(1+r) − log(1+rf). Its conditional variance follows
+GJR-GARCH(1,1) with leverage, and its innovations are standardised t. The conditional arithmetic premium μ_e is constant.
+We compared four models on us_mkt:</p>
+<table>
+<thead>
+<tr>
+<th>model</th>
+<th>gap_variant</th>
+<th>loglik</th>
+<th>bic</th>
+<th>nu</th>
+<th>persistence</th>
+<th>half_life_days</th>
+<th>uncond_vol_ann</th>
+<th>PIT u&lt;0.02 H252</th>
+<th>PIT u&lt;0.02 H504</th>
+<th>VaR0.01 hit rate</th>
+<th>VaR0.001 hit rate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>garch_n</td>
+<td>none</td>
+<td>88,728</td>
+<td>-177,414</td>
+<td></td>
+<td>0.9884</td>
+<td>59</td>
+<td>17.6%</td>
+<td>1.1%</td>
+<td>1.9%</td>
+<td>1.93%</td>
+<td>0.62%</td>
+</tr>
+<tr>
+<td>garch_t</td>
+<td>none</td>
+<td>89,706</td>
+<td>-179,361</td>
+<td>5.48</td>
+<td>0.9967</td>
+<td>212</td>
+<td>26.2%</td>
+<td>0.8%</td>
+<td>1.1%</td>
+<td>1.27%</td>
+<td>0.16%</td>
+</tr>
+<tr>
+<td>gjr_t</td>
+<td>none</td>
+<td>89,884</td>
+<td>-179,707</td>
+<td>5.86</td>
+<td>0.9881</td>
+<td>58</td>
+<td>15.3%</td>
+<td>1.4%</td>
+<td>1.9%</td>
+<td>1.22%</td>
+<td>0.16%</td>
+</tr>
+<tr>
+<td>egarch_t</td>
+<td>none</td>
+<td>89,943</td>
+<td>-179,825</td>
+<td>5.90</td>
+<td>0.9850</td>
+<td>46</td>
+<td>11.9%</td>
+<td>1.7%</td>
+<td>1.9%</td>
+<td>1.21%</td>
+<td>0.16%</td>
+</tr>
+<tr>
+<td>garch_n</td>
+<td>scale</td>
+<td>88,749</td>
+<td>-177,458</td>
+<td></td>
+<td>0.9882</td>
+<td>58</td>
+<td>17.4%</td>
+<td>1.1%</td>
+<td>1.9%</td>
+<td>1.93%</td>
+<td>0.62%</td>
+</tr>
+<tr>
+<td>garch_t</td>
+<td>scale</td>
+<td>89,712</td>
+<td>-179,373</td>
+<td>5.51</td>
+<td>0.9968</td>
+<td>215</td>
+<td>26.3%</td>
+<td>1.1%</td>
+<td>0.6%</td>
+<td>1.28%</td>
+<td>0.16%</td>
+</tr>
+<tr>
+<td>gjr_t</td>
+<td>scale</td>
+<td>89,889</td>
+<td>-179,717</td>
+<td>5.89</td>
+<td>0.9881</td>
+<td>58</td>
+<td>15.3%</td>
+<td>1.4%</td>
+<td>1.9%</td>
+<td>1.23%</td>
+<td>0.16%</td>
+</tr>
+<tr>
+<td>egarch_t</td>
+<td>scale</td>
+<td>89,947</td>
+<td>-179,834</td>
+<td>5.93</td>
+<td>0.9850</td>
+<td>46</td>
+<td>11.9%</td>
+<td>1.7%</td>
+<td>1.9%</td>
+<td>1.23%</td>
+<td>0.17%</td>
+</tr>
+<tr>
+<td>gjr_t (FHS innovations)</td>
+<td>scale</td>
+<td>89,889</td>
+<td>-179,717</td>
+<td>5.89</td>
+<td>0.9881</td>
+<td>58</td>
+<td>15.3%</td>
+<td>0.3%</td>
+<td>0.8%</td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p class='src'>Source: scripts/07_report_numbers.py → results/report/tables/model_comparison_us_mkt.csv (from results/model/model_comparison_us_mkt.csv)</p>
+
+<p>EGARCH-t has the best BIC, but its simulated 1–2-year tails are almost identical to GJR-t's, so the floor would not
+change. GJR-t has a closed-form persistence and unconditional variance, and its σ_0 is a transparent state. GARCH-t is
+kept as an alternative data-generating process in the robust set. Its slow vol mean reversion produces the fat
+multi-year tails that GJR misses. Fitted us_mkt values: ν = 5.89, persistence
+0.9881 (half-life 58 days), unconditional volatility
+15.3%.</p>
+<h3 id="32-premium-and-its-shrinkage">3.2 Premium and its shrinkage</h3>
+<p>The sample mean excess return is 7.83% per year with a standard error of
+1.67% (105 years). We shrink it
+50% toward zero and use <strong>3.91%</strong>.
+The raw estimate is noisy, and the floor fails when the premium is overstated, not when it is understated. The same
+procedure gives 2.59% to 5.16% across the
+11 assets. Because the premium is the input the DP leans on most, we calibrate the DP against a
+halved premium and test it with a zero premium (§4.6, §6.3).</p>
+<h3 id="33-rates-and-why-_0-r_0-is-the-complete-state">3.3 Rates, and why (σ_0, r_0) is the complete state</h3>
+<p>The short rate is Vasicek, fitted by OLS AR(1) on monthly rates from 1954-01 to
+2026-09 (872 months). The 1954 start follows the Treasury–Fed Accord. Estimates:
+κ = 0.34 (SE 0.10), θ = 4.30%,
+s = 2.57%, half-life 2.0 years. The equity–rate
+correlation is ρ = -0.12 (same-month pairing). Under GJR-GARCH the next day's return
+distribution depends on the past only through σ_t², and the sign of the last shock is already in it. Under Vasicek the
+rate's future depends only on r_t. So (σ_0, r_0) is everything the model can use at t = 0. The named states for us_mkt
+are calm 7.9%, normal 11.9%, elevated
+24.6%, crisis 51.0% and extreme 125.1%
+(the 1987-10-19 close), with r_0 = 2.67% (the median). As checks: the model's σ_0
+on 2020-03-16 is 115.8% and on 2008-11-20 80.2%.</p>
+<h3 id="34-validation">3.4 Validation</h3>
+<ul>
+<li><strong>Stylised facts.</strong> Simulated annual volatility is 14.9% against
+  17.1% in the data. The 2% quantile of the 1-year cumulative excess log return is
+  -34% in the model and -43% in the data.
+  At 2 years it is -47% against -68%.</li>
+<li><strong>Conditional PIT test.</strong> Each quarterly start is forecast with parameters estimated only on data before it
+  (expanding window). We then count how often the realised 1- and 2-year return falls below the model's 2% quantile.
+  Overall: 1.4% at 1 year (95% CI 0.3%–6.4%,
+  effective n 91) and 1.9% at 2 years
+  (CI 0.3%–11.2%). No bucket or era rejects.
+  <strong>The test has low power:</strong> per-bucket confidence intervals are 9 to
+  67 percentage points wide, and crisis starts are too few to test. The
+  elevated-volatility point estimate at 1 year is 5.6%. This is one reason we tune
+  to a target below 2%. Full table: Appendix B.</li>
+<li><strong>Daily VaR backtest of the t tail</strong> (<code>scripts/02b_var_backtest.py</code>). The fitted ν produces too many 1% and 0.1%
+  exceedances, meaning the left tail is heavier than a symmetric t. That asymmetry is why filtered historical simulation,
+  which resamples the empirical residuals, is in the robust set. ν = 3 produces too few exceedances, meaning it is too
+  heavy. So "fat tails (ν = 3)" is a stress test, not part of the robust set.</li>
+<li><strong>Parameter stability.</strong> Across sub-samples (1926–1962, from 1963, 1963–1999, from 1990, 2000 onward), persistence
+  ranges from 0.981 to 0.992 and ν
+  from 4.6 to 7.7 (Appendix B). The parameter
+  uncertainty is carried into the robust set as a "parameter draws" scenario.</li>
+</ul>
+<h3 id="35-known-weaknesses">3.5 Known weaknesses</h3>
+<ul>
+<li><strong>Thin unconditional long-horizon tail.</strong> GJR's volatility mean-reverts in weeks, so it cannot generate 1929–32-style
+  multi-year drawdowns (2-year 2% quantile: see §3.4). This matters less for a dynamic strategy than for a static one.
+  Our strategies re-read σ_t daily and de-risk as a drawdown develops, so a slow crash is met with less equity. The
+  danger is a fast crash, which is why gap risk drives the design (§4) and the stress tests (§6).</li>
+<li><strong>ind_telcm.</strong> Its PIT rejects as too thin at 1 year (H=252 u&lt;0.01: too thin; H=252 u&lt;0.02: too thin; H=252 u&lt;0.05: too thin). The window is
+  dominated by the 2000–02 telecom bust. The deployment rule routes it to CPPI.</li>
+<li><strong>Automatic fallback window.</strong> If the full-history fit is near-integrated (persistence ≥
+  0.998) or fewer than 70% of parameter draws are
+  valid, all equity estimation for that asset restarts at 1990-01-01. It fired for
+  4 assets (enrgy, telcm, shops, utils). A <strong>rule</strong> beats hand-picked per-asset dates
+  (we first used 1984 for telecom) because the committee will run the procedure on assets nobody has looked at. A
+  hand-picked date also embeds hindsight about where the regime broke.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>asset</th>
+<th>persistence_full</th>
+<th>valid_draws_full</th>
+<th>fallback</th>
+<th>start_used</th>
+<th>persistence_used</th>
+<th>half_life_used</th>
+<th>valid_draws_used</th>
+<th>nu</th>
+<th>premium_used</th>
+<th>uncond_vol</th>
+<th>pit2_252</th>
+<th>pit2_504</th>
+<th>sigma_crisis</th>
+<th>sigma_extreme</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>us_mkt</td>
+<td>0.98810</td>
+<td>100.0%</td>
+<td>False</td>
+<td>1926-07-01</td>
+<td>0.9881</td>
+<td>58</td>
+<td>100.0%</td>
+<td>5.89</td>
+<td>3.91%</td>
+<td>15.3%</td>
+<td>1.4%</td>
+<td>1.9%</td>
+<td>51.0%</td>
+<td>125.1%</td>
+</tr>
+<tr>
+<td>ind_nodur</td>
+<td>0.99225</td>
+<td>100.0%</td>
+<td>False</td>
+<td>1926-07-01</td>
+<td>0.9922</td>
+<td>89</td>
+<td>100.0%</td>
+<td>5.95</td>
+<td>3.77%</td>
+<td>15.0%</td>
+<td>2.2%</td>
+<td>1.4%</td>
+<td>39.9%</td>
+<td>116.8%</td>
+</tr>
+<tr>
+<td>ind_durbl</td>
+<td>0.99500</td>
+<td>100.0%</td>
+<td>False</td>
+<td>1926-07-01</td>
+<td>0.9950</td>
+<td>138</td>
+<td>100.0%</td>
+<td>6.53</td>
+<td>5.02%</td>
+<td>25.9%</td>
+<td>1.4%</td>
+<td>1.1%</td>
+<td>72.6%</td>
+<td>126.7%</td>
+</tr>
+<tr>
+<td>ind_manuf</td>
+<td>0.98815</td>
+<td>100.0%</td>
+<td>False</td>
+<td>1926-07-01</td>
+<td>0.9882</td>
+<td>58</td>
+<td>100.0%</td>
+<td>6.54</td>
+<td>4.19%</td>
+<td>16.6%</td>
+<td>1.7%</td>
+<td>0.8%</td>
+<td>56.6%</td>
+<td>134.5%</td>
+</tr>
+<tr>
+<td>ind_enrgy</td>
+<td>0.99748</td>
+<td>50.0%</td>
+<td>True</td>
+<td>1990-01-02</td>
+<td>0.9947</td>
+<td>130</td>
+<td>50.0%</td>
+<td>9.05</td>
+<td>4.97%</td>
+<td>24.8%</td>
+<td>1.9%</td>
+<td>2.0%</td>
+<td>75.1%</td>
+<td>140.5%</td>
+</tr>
+<tr>
+<td>ind_hitec</td>
+<td>0.99171</td>
+<td>100.0%</td>
+<td>False</td>
+<td>1926-07-01</td>
+<td>0.9917</td>
+<td>83</td>
+<td>100.0%</td>
+<td>6.92</td>
+<td>5.16%</td>
+<td>22.4%</td>
+<td>1.4%</td>
+<td>1.4%</td>
+<td>67.4%</td>
+<td>154.5%</td>
+</tr>
+<tr>
+<td>ind_telcm</td>
+<td>0.99996</td>
+<td>33.3%</td>
+<td>True</td>
+<td>1990-01-02</td>
+<td>0.9843</td>
+<td>44</td>
+<td>100.0%</td>
+<td>8.15</td>
+<td>2.59%</td>
+<td>16.8%</td>
+<td>7.8%</td>
+<td>6.1%</td>
+<td>52.1%</td>
+<td>88.8%</td>
+</tr>
+<tr>
+<td>ind_shops</td>
+<td>0.99583</td>
+<td>50.0%</td>
+<td>True</td>
+<td>1990-01-02</td>
+<td>0.9844</td>
+<td>44</td>
+<td>100.0%</td>
+<td>8.23</td>
+<td>5.04%</td>
+<td>17.1%</td>
+<td>0.0%</td>
+<td>0.0%</td>
+<td>47.3%</td>
+<td>96.0%</td>
+</tr>
+<tr>
+<td>ind_hlth</td>
+<td>0.98483</td>
+<td>100.0%</td>
+<td>False</td>
+<td>1926-07-01</td>
+<td>0.9848</td>
+<td>45</td>
+<td>100.0%</td>
+<td>6.52</td>
+<td>4.53%</td>
+<td>16.5%</td>
+<td>0.6%</td>
+<td>1.1%</td>
+<td>49.0%</td>
+<td>119.2%</td>
+</tr>
+<tr>
+<td>ind_utils</td>
+<td>1.00000</td>
+<td>33.3%</td>
+<td>True</td>
+<td>1990-01-02</td>
+<td>0.9909</td>
+<td>76</td>
+<td>100.0%</td>
+<td>7.45</td>
+<td>3.73%</td>
+<td>15.4%</td>
+<td>2.9%</td>
+<td>3.0%</td>
+<td>52.0%</td>
+<td>104.7%</td>
+</tr>
+<tr>
+<td>ind_other</td>
+<td>0.98657</td>
+<td>100.0%</td>
+<td>False</td>
+<td>1926-07-01</td>
+<td>0.9866</td>
+<td>51</td>
+<td>100.0%</td>
+<td>5.94</td>
+<td>3.59%</td>
+<td>17.2%</td>
+<td>2.2%</td>
+<td>2.2%</td>
+<td>63.5%</td>
+<td>130.1%</td>
+</tr>
+</tbody>
+</table>
+<p class='src'>Source: scripts/07_report_numbers.py → results/report/tables/assets_model.csv (from results/model/params_{asset}.json, reports/model/{asset}/model_report.json)</p>
+
+<h2 id="4-strategy-design-brief-q1">4. Strategy design (brief Q1)</h2>
+<h3 id="41-the-family-and-the-logic-connecting-them">4.1 The family and the logic connecting them</h3>
+<ol>
+<li><strong>Merton (lectures 1–2).</strong> With CRRA and i.i.d. returns, the optimal weight is φ = μ_e/(γσ²), constant and myopic.
+   It ignores the floor: on us_mkt it breaches 14.0% of the time from a normal
+   start. It is our no-floor benchmark.</li>
+<li><strong>CPPI.</strong> Invest m × (W − floor PV) in equity. In continuous time it never breaches. In daily trading it breaches
+   only when one day's loss exceeds 1/m: <strong>gap risk</strong>.</li>
+<li><strong>Gap-aware CPPI.</strong> Set m_t = 1/(z·σ_t), so the cushion always survives a z-standard-deviation day. The multiplier
+   falls automatically when volatility rises.</li>
+<li><strong>OBPI (lecture 2).</strong> Under complete markets the CRRA-optimal payoff with a hard floor is max(K, X_T), where X is
+   unconstrained Merton wealth. We replicate it daily, re-anchoring on actual wealth each day.</li>
+<li><strong>DP with a breach penalty (lectures 1, 3).</strong> We solve max E[U(W_T) − λ·1{W_T &lt; K}] by backward induction on the
+   state (days left, W/floor PV, σ_t²). This is the Lagrangian of the mandate itself, rather than a rule that only
+   approximates it. Then we pick λ per (σ_0, T) so the worst-case breach meets the target.</li>
+<li><strong>Premium-robust DP.</strong> The same solved policies, but λ is calibrated against the robust set <strong>plus a halved
+   premium</strong>.</li>
+</ol>
+<h3 id="42-floor-present-value-a-conservative-discount">4.2 Floor present value: a conservative discount</h3>
+<p>Cash earns a floating rate. A strategy that has locked into cash still ends below K if rates fall afterwards: the floor's
+PV rises and cash does not catch up. That is reinvestment risk, and no cash/equity strategy can hedge it. Every floor
+strategy therefore protects F̃_t = K·exp(−q_α), where q_α is the α = 0.1% quantile of log cash
+growth over the remaining horizon under the investor's own Vasicek model. At the median rate this floor sits
+1.2% above K at T = 1 and 4.2% above K at
+T = 2. It costs little CE because every knob is re-tuned to it.</p>
+<h3 id="43-robust-tuning">4.3 Robust tuning</h3>
+<p>Each knob (m, z, the OBPI floor level, the DP's λ) is set per (σ_0, T) so that the <strong>maximum</strong> breach over the robust
+set is at most 1.25%. The robust set is: base model, GARCH-t as the data-generating process,
+filtered historical simulation, parameter-uncertainty draws, and persistent volatility. The 1.25%
+target leaves room below 2% for Monte Carlo error, selection noise and the weak PIT. The
+breach-versus-knob crossing is found with a logistic fit over all candidates rather than by picking the last grid point
+under the target, which is biased low. Knobs are tuned on one random seed (20,000 paths) and every
+reported number uses an independent evaluation seed (50,000 paths).</p>
+<h3 id="44-the-ce-versus-breach-frontier">4.4 The CE-versus-breach frontier</h3>
+<figure>
+<p><img alt="CE − cash against breach" src="figures/frontier.png" /></p>
+<figcaption><strong>CE − cash against breach.</strong> CE − cash against base-scenario breach for each strategy family (us_mkt, normal start). Lines sweep each family's knob; stars are the robust-tuned versions actually evaluated. Dashed: the 2% mandate; dotted: the 1.25% tuning target. Source: scripts/07_report_numbers.py → results/report/inputs/frontier_us_mkt.parquet, dp_lambda_frontier_us_mkt.parquet</figcaption>
+</figure>
+<p>At any breach level the DP's frontier lies above every simple family's. Validation test V6 compares like with like: for
+each tuned comparator it takes the best DP λ with <em>no higher</em> base breach. The DP earns more in
+32 of 32 comparable cells, by
+13 to 164 bp/yr.</p>
+<h3 id="45-why-the-dp-and-why-a-fallback">4.5 Why the DP, and why a fallback</h3>
+<p>The DP is the only design that optimises the stated objective under the stated constraint. The others are rules that
+satisfy the constraint and hope CE follows. Its advantage comes from what the rules cannot do. It holds equity close to
+the floor when volatility is low and the cushion can absorb a bad day. It cuts equity sharply when volatility is high
+even with a large cushion (Figure 3). The price is model dependence: the DP believes its premium and volatility
+dynamics. Gap-aware CPPI uses only σ_t and the floor, so it is the right tool when the model is in doubt. Hence the
+fallback rule (§6.6).</p>
+<p>The DP was validated on us_mkt: Merton limit (V1) pass; grid convergence
+(V4) pass; DP breach recursion vs Monte Carlo with the rate held constant
+(V5) pass. Under stochastic rates,
+16 of 80 V5 cells fail, all at T = 2. That gap is rate risk, which
+the fixed-rate DP does not model; we report it rather than tune it away.</p>
+<h3 id="46-dead-ends">4.6 Dead ends</h3>
+<ul>
+<li><strong>Base-only tuning.</strong> Knobs tuned on the base model alone reach worst-case breaches of
+  1.7%–4.6% across the robust set.
+  This is why we tune on the worst case.</li>
+<li><strong>Untuned OBPI (floor = K).</strong> Daily rebalancing leaves half the mass pinned at K just below it: base breach up to
+  10.4%.</li>
+<li><strong>A 2nd-percentile floor discount.</strong> It was proposed as "more conservative", but it was looser than the floor already
+  in use and would have roughly doubled breaches. We moved to the 0.1% quantile instead (DECISIONS, 2026-11-21).</li>
+<li><strong>Last-candidate tuning bias</strong>, replaced by the logistic crossing. <strong>A quick-run (5k-path) worst case above target</strong>
+  turned out to be noise at 50,000 paths.</li>
+<li><strong>OBPI tracking drift and unbounded simulated variance.</strong> Carrying the replicating portfolio forward let φ stay
+  near 1 through very large down days. Daily re-anchoring fixed it. GARCH-t paths without a variance cap reached volatilities far beyond anything in the data, so we capped simulated volatility at 1.5 × the asset's historical maximum.</li>
+<li><strong>DP calibrated at the base premium only.</strong> Under a zero premium it breached up to
+  3.25% (calm, T =
+  2). This led to the premium-robust calibration.</li>
+</ul>
+<h2 id="5-expected-performance-brief-q2">5. Expected performance (brief Q2)</h2>
+<table>
+<thead>
+<tr>
+<th>state</th>
+<th>T</th>
+<th>ce_xcash</th>
+<th>q5</th>
+<th>q50</th>
+<th>q95</th>
+<th>p_near_floor</th>
+<th>p_below_100</th>
+<th>phi_avg</th>
+<th>turnover</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>calm</td>
+<td>1</td>
+<td>2.48%</td>
+<td>95.10</td>
+<td>105.00</td>
+<td>123.68</td>
+<td>24.3%</td>
+<td>33.9%</td>
+<td>0.79</td>
+<td>6.03</td>
+</tr>
+<tr>
+<td>calm</td>
+<td>2</td>
+<td>2.45%</td>
+<td>95.14</td>
+<td>111.29</td>
+<td>141.05</td>
+<td>18.2%</td>
+<td>24.9%</td>
+<td>0.79</td>
+<td>11.92</td>
+</tr>
+<tr>
+<td>normal</td>
+<td>1</td>
+<td>2.38%</td>
+<td>95.07</td>
+<td>104.92</td>
+<td>124.07</td>
+<td>23.5%</td>
+<td>33.5%</td>
+<td>0.78</td>
+<td>6.86</td>
+</tr>
+<tr>
+<td>normal</td>
+<td>2</td>
+<td>2.36%</td>
+<td>95.14</td>
+<td>111.04</td>
+<td>141.04</td>
+<td>18.9%</td>
+<td>25.6%</td>
+<td>0.76</td>
+<td>13.01</td>
+</tr>
+<tr>
+<td>elevated</td>
+<td>1</td>
+<td>1.94%</td>
+<td>95.08</td>
+<td>104.33</td>
+<td>122.89</td>
+<td>24.5%</td>
+<td>34.8%</td>
+<td>0.65</td>
+<td>7.09</td>
+</tr>
+<tr>
+<td>elevated</td>
+<td>2</td>
+<td>2.14%</td>
+<td>95.14</td>
+<td>110.57</td>
+<td>139.61</td>
+<td>19.4%</td>
+<td>26.0%</td>
+<td>0.70</td>
+<td>12.95</td>
+</tr>
+<tr>
+<td>crisis</td>
+<td>1</td>
+<td>1.54%</td>
+<td>95.07</td>
+<td>103.96</td>
+<td>121.24</td>
+<td>22.5%</td>
+<td>34.7%</td>
+<td>0.54</td>
+<td>6.14</td>
+</tr>
+<tr>
+<td>crisis</td>
+<td>2</td>
+<td>1.97%</td>
+<td>95.11</td>
+<td>110.24</td>
+<td>138.01</td>
+<td>18.3%</td>
+<td>25.4%</td>
+<td>0.65</td>
+<td>11.90</td>
+</tr>
+<tr>
+<td>extreme</td>
+<td>1</td>
+<td>1.06%</td>
+<td>95.07</td>
+<td>103.47</td>
+<td>118.85</td>
+<td>19.3%</td>
+<td>33.6%</td>
+<td>0.39</td>
+<td>4.83</td>
+</tr>
+<tr>
+<td>extreme</td>
+<td>2</td>
+<td>1.68%</td>
+<td>95.12</td>
+<td>109.57</td>
+<td>135.49</td>
+<td>18.2%</td>
+<td>25.5%</td>
+<td>0.56</td>
+<td>10.55</td>
+</tr>
+</tbody>
+</table>
+<p class='src'>Source: scripts/07_report_numbers.py → results/report/tables/performance_dp_us_mkt.csv (from results_dp_mu/mc/summary.parquet + terminal subsamples (5k paths per cell))</p>
+
+<p>q5/q50/q95 are terminal-wealth quantiles in $M. "Near floor" is P(K ≤ W_T &lt; (1 + 2%)K) and "below 100" is P(W_T &lt;
+$100M), both from a 5,000-path subsample. φ is the average equity weight, and turnover is the average
+Σ|Δφ| per path. Trading costs are negligible per the mandate.</p>
+<p><strong>What to expect.</strong> From a calm or normal start the DP earns about
+2.4% per year over cash, with average equity weight
+0.78 and median wealth $111.0M after two years. From a crisis or
+extreme start it holds much less equity at first (average φ 0.39 at T = 1 from the
+extreme state), so CE − cash falls to 1.1% at T = 1. Longer horizons recover more
+(1.7% at T = 2), because volatility mean-reverts and the strategy has time to re-risk.
+Across states, 18%–25% of outcomes end just above the
+floor: the DP spends cushion when it is cheap and parks near the floor when it is not. The committee should expect a
+sizeable minority of years in which the result is "floor plus a little".</p>
+<figure>
+<p><img alt="Terminal wealth" src="figures/cdf.png" /></p>
+<figcaption><strong>Terminal wealth.</strong> Distribution of terminal wealth, us_mkt, T = 2, base scenario (5,000-path subsample of the 50,000 evaluation paths). Dashed: the $95M floor; dotted: 2% probability. Source: scripts/07_report_numbers.py → results/report/inputs/terminal_base.npz</figcaption>
+</figure>
+<figure>
+<p><img alt="The DP policy" src="figures/policy.png" /></p>
+<figcaption><strong>The DP policy.</strong> Premium-robust DP policy for us_mkt at the λ* of the normal state, T = 2 (λ = 0.00261). y = 1 (dashed) is the conservative floor PV. Dotted lines mark the named starting states' σ0. Source: scripts/07_report_numbers.py → results/report/inputs/policy_us_mkt.npz (from results/policies/dp_premrobust_us_mkt.npz)</figcaption>
+</figure>
+<p><strong>Reading the policy.</strong> Equity is the white-to-yellow region. (1) <strong>Away from the floor and at low volatility</strong> the DP
+is fully invested, as Merton would be (1.00 at y = 1.5, normal σ). (2) <strong>Volatility
+alone de-risks</strong>: at the same cushion, φ drops to 0.07 at crisis-level σ, because one
+bad day can then consume the cushion. (3) <strong>Near the floor</strong> the weight falls fast as the cushion thins. Just below the
+floor the DP gambles (high φ): once a breach is likely the penalty is mostly paid, so variance helps. This is a known
+feature of the non-concave Lagrangian problem. It is rare in practice because the policy rarely lets wealth get there.
+(4) <strong>Close to the horizon</strong> the no-trade boundary sharpens.</p>
+<h2 id="6-why-the-floor-holds-from-every-starting-condition-brief-q3">6. Why the floor holds from every starting condition (brief Q3)</h2>
+<h3 id="61-worst-case-over-the-robust-set">6.1 Worst case over the robust set</h3>
+<figure>
+<p><img alt="Worst-case breach by starting state and horizon" src="figures/heatmap.png" /></p>
+<figcaption><strong>Worst-case breach by starting state and horizon.</strong> Worst-case breach over the robust model set (base, GARCH-t DGP, filtered historical simulation, parameter uncertainty, persistent vol), us_mkt, by starting σ0 and horizon; 50,000 evaluation paths per cell. The colour bar's black line is the 2% mandate. Source: scripts/07_report_numbers.py → results/report/tables/all_cells.csv</figcaption>
+</figure>
+<p>The DP's worst-case breach is at most <strong>0.95%</strong> across all named states and both horizons. For
+gap-aware CPPI it is 1.33% and for OBPI 1.47%. The DP's λ was solved and
+calibrated at T ∈ {1, 2} for the named states; between them it uses the more conservative neighbouring λ (it never
+interpolates λ). Gap-aware CPPI is also evaluated on a dense σ_0 × r_0 grid and at the intermediate horizons (the app reads these rows from <code>results/mc/summary.parquet</code>).</p>
+<h3 id="62-monte-carlo-error">6.2 Monte Carlo error</h3>
+<p>With 50,000 evaluation paths, the standard error of a 2% breach estimate is
+0.063 percentage points (0.099 at the
+20,000 paths used for industries). The gap between our worst case and 2% is many standard errors.
+The tuning seed and evaluation seed are independent, so the reported breach is not the one the tuner minimised.</p>
+<h3 id="63-stress-tests-outside-the-tuning-set">6.3 Stress tests outside the tuning set</h3>
+<figure>
+<p><img alt="Stress tests" src="figures/stress.png" /></p>
+<figcaption><strong>Stress tests.</strong> Breach under the tuning scenarios and under stress scenarios held out of tuning, maximum over the five named starting states, us_mkt. Dashed: 2%. Source: scripts/07_report_numbers.py → results/report/tables/all_cells.csv</figcaption>
+</figure>
+<table>
+<thead>
+<tr>
+<th>strategy</th>
+<th>T</th>
+<th>worst_robust_max</th>
+<th>mu_low_max</th>
+<th>mu_low_argmax</th>
+<th>mu_zero_max</th>
+<th>mu_zero_argmax</th>
+<th>fat_tails_max</th>
+<th>fat_tails_argmax</th>
+<th>jump_max</th>
+<th>jump_argmax</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Premium-robust DP</td>
+<td>1</td>
+<td>0.95%</td>
+<td>1.20%</td>
+<td>extreme</td>
+<td>1.75%</td>
+<td>normal</td>
+<td>3.45%</td>
+<td>extreme</td>
+<td>1.25%</td>
+<td>normal</td>
+</tr>
+<tr>
+<td>Premium-robust DP</td>
+<td>2</td>
+<td>0.63%</td>
+<td>0.99%</td>
+<td>crisis</td>
+<td>1.65%</td>
+<td>crisis</td>
+<td>1.45%</td>
+<td>crisis</td>
+<td>0.87%</td>
+<td>crisis</td>
+</tr>
+<tr>
+<td>DP (base λ*)</td>
+<td>1</td>
+<td>0.95%</td>
+<td>1.20%</td>
+<td>extreme</td>
+<td>1.78%</td>
+<td>calm</td>
+<td>3.45%</td>
+<td>extreme</td>
+<td>1.29%</td>
+<td>calm</td>
+</tr>
+<tr>
+<td>DP (base λ*)</td>
+<td>2</td>
+<td>1.12%</td>
+<td>1.93%</td>
+<td>calm</td>
+<td>3.25%</td>
+<td>calm</td>
+<td>1.63%</td>
+<td>elevated</td>
+<td>1.47%</td>
+<td>calm</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>1</td>
+<td>1.30%</td>
+<td>0.28%</td>
+<td>normal</td>
+<td>0.31%</td>
+<td>normal</td>
+<td>2.69%</td>
+<td>extreme</td>
+<td>1.23%</td>
+<td>calm</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>2</td>
+<td>1.33%</td>
+<td>0.40%</td>
+<td>calm</td>
+<td>0.43%</td>
+<td>calm</td>
+<td>2.18%</td>
+<td>crisis</td>
+<td>1.63%</td>
+<td>calm</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>1</td>
+<td>1.26%</td>
+<td>0.75%</td>
+<td>crisis</td>
+<td>0.77%</td>
+<td>crisis</td>
+<td>1.09%</td>
+<td>normal</td>
+<td>1.16%</td>
+<td>calm</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>2</td>
+<td>1.47%</td>
+<td>0.88%</td>
+<td>elevated</td>
+<td>1.06%</td>
+<td>elevated</td>
+<td>0.95%</td>
+<td>calm</td>
+<td>1.23%</td>
+<td>calm</td>
+</tr>
+<tr>
+<td>CPPI</td>
+<td>1</td>
+<td>1.24%</td>
+<td>0.29%</td>
+<td>calm</td>
+<td>0.29%</td>
+<td>calm</td>
+<td>1.21%</td>
+<td>calm</td>
+<td>1.34%</td>
+<td>calm</td>
+</tr>
+<tr>
+<td>CPPI</td>
+<td>2</td>
+<td>1.25%</td>
+<td>0.35%</td>
+<td>calm</td>
+<td>0.35%</td>
+<td>calm</td>
+<td>1.10%</td>
+<td>calm</td>
+<td>1.40%</td>
+<td>calm</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>1</td>
+<td>52.46%</td>
+<td>44.64%</td>
+<td>extreme</td>
+<td>46.30%</td>
+<td>extreme</td>
+<td>39.15%</td>
+<td>extreme</td>
+<td>42.94%</td>
+<td>extreme</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>2</td>
+<td>48.78%</td>
+<td>41.54%</td>
+<td>extreme</td>
+<td>44.20%</td>
+<td>extreme</td>
+<td>33.17%</td>
+<td>extreme</td>
+<td>38.82%</td>
+<td>extreme</td>
+</tr>
+</tbody>
+</table>
+<p class='src'>Source: scripts/07_report_numbers.py → results/report/tables/stress_us_mkt.csv (from results/mc, results_dp/mc, results_dp_mu/mc summary.parquet)</p>
+
+<p><strong>Failures (breach &gt; 2%), us_mkt:</strong></p>
+<table>
+<thead>
+<tr>
+<th>strategy</th>
+<th>scenario</th>
+<th>state</th>
+<th>T</th>
+<th>breach</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Premium-robust DP</td>
+<td>fat_tails</td>
+<td>crisis</td>
+<td>1</td>
+<td>2.64%</td>
+</tr>
+<tr>
+<td>Premium-robust DP</td>
+<td>fat_tails</td>
+<td>extreme</td>
+<td>1</td>
+<td>3.45%</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>fat_tails</td>
+<td>calm</td>
+<td>1</td>
+<td>2.35%</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>fat_tails</td>
+<td>calm</td>
+<td>2</td>
+<td>2.16%</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>fat_tails</td>
+<td>normal</td>
+<td>1</td>
+<td>2.44%</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>fat_tails</td>
+<td>normal</td>
+<td>2</td>
+<td>2.16%</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>fat_tails</td>
+<td>elevated</td>
+<td>1</td>
+<td>2.50%</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>fat_tails</td>
+<td>elevated</td>
+<td>2</td>
+<td>2.12%</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>fat_tails</td>
+<td>crisis</td>
+<td>1</td>
+<td>2.51%</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>fat_tails</td>
+<td>crisis</td>
+<td>2</td>
+<td>2.18%</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>fat_tails</td>
+<td>extreme</td>
+<td>1</td>
+<td>2.69%</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>fat_tails</td>
+<td>extreme</td>
+<td>2</td>
+<td>2.15%</td>
+</tr>
+</tbody>
+</table>
+<p class='src'>Source: scripts/07_report_numbers.py → results/report/tables/stress_failures_us_mkt.csv (from results/mc, results_dp_mu/mc summary.parquet)</p>
+
+<ul>
+<li><strong>Premium halved / zero.</strong> The premium-robust DP stays below 2% in every cell (zero
+  premium: max 1.75%; the thinnest margin is 0.25
+  percentage points). The rule-based strategies barely react to the premium (gap-aware CPPI ≤ 0.43%).</li>
+<li><strong>Fat tails (ν = 3).</strong> The DP exceeds 2% in 2
+  cells (crisis and extreme starts at T = 1). Gap-aware CPPI exceeds it in 10 of
+  10 cells. OBPI does not, because its exposure is bounded by the Merton weight. The daily VaR backtest rejects ν = 3
+  as too heavy, so this stress is more severe than the data support, but it marks the edge of the claim.</li>
+<li><strong>Jumps (a -20% day with probability 1% per path-year).</strong> DP max 1.25%.</li>
+</ul>
+<h3 id="64-where-breaches-come-from">6.4 Where breaches come from</h3>
+<table>
+<thead>
+<tr>
+<th>strategy</th>
+<th>T</th>
+<th>n_breaches</th>
+<th>gap</th>
+<th>gradual</th>
+<th>rate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Premium-robust DP</td>
+<td>1</td>
+<td>7055</td>
+<td>43.1%</td>
+<td>52.5%</td>
+<td>4.4%</td>
+</tr>
+<tr>
+<td>Premium-robust DP</td>
+<td>2</td>
+<td>4583</td>
+<td>30.2%</td>
+<td>54.7%</td>
+<td>15.1%</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>1</td>
+<td>6290</td>
+<td>98.4%</td>
+<td>0.0%</td>
+<td>1.6%</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>2</td>
+<td>7403</td>
+<td>83.8%</td>
+<td>0.0%</td>
+<td>16.2%</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>1</td>
+<td>5091</td>
+<td>63.6%</td>
+<td>34.5%</td>
+<td>1.9%</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>2</td>
+<td>6444</td>
+<td>64.8%</td>
+<td>25.7%</td>
+<td>9.6%</td>
+</tr>
+</tbody>
+</table>
+<p class='src'>Source: scripts/07_report_numbers.py → results/report/tables/breach_decomposition_us_mkt.csv (from results/mc, results_dp_mu/mc summary.parquet (robust set, named states))</p>
+
+<p>A breach is classified by the day the cushion was last crossed. <em>Gap</em>: one day's equity loss exceeded a cushion that
+could absorb a one-σ move. <em>Gradual</em>: an eroded cushion. <em>Rate</em>: the floor PV rose or cash under-earned. Gap-aware
+CPPI's breaches are almost all gaps, which is the residual risk a daily-rebalanced floor cannot remove. The DP's are
+split between gaps and gradual erosion, because it deliberately keeps some equity near the floor. At T = 2 about
+15% are rate-driven: the fixed-rate DP does not see rate risk (§7).</p>
+<h3 id="65-historical-backtest">6.5 Historical backtest</h3>
+<p>We run each strategy from every month-end start since the first refit, with the investor re-estimated every 5 years
+on past data only. The table shows the gap-aware CPPI and OBPI rows at T = 1 and 2 (overall and by σ_0 bucket; by
+decade in Appendix B):</p>
+<table>
+<thead>
+<tr>
+<th>strategy</th>
+<th>group_type</th>
+<th>group</th>
+<th>n_starts</th>
+<th>n_eff</th>
+<th>breach</th>
+<th>breach_lo</th>
+<th>breach_hi</th>
+<th>ce_xcash</th>
+<th>T</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>overall</td>
+<td>all</td>
+<td>1089</td>
+<td>91</td>
+<td>0.6%</td>
+<td>0.1%</td>
+<td>5.1%</td>
+<td>5.67%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>overall</td>
+<td>all</td>
+<td>1077</td>
+<td>45</td>
+<td>0.9%</td>
+<td>0.1%</td>
+<td>9.5%</td>
+<td>4.61%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>overall</td>
+<td>all</td>
+<td>1089</td>
+<td>91</td>
+<td>8.7%</td>
+<td>4.5%</td>
+<td>16.3%</td>
+<td>3.31%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>overall</td>
+<td>all</td>
+<td>1077</td>
+<td>45</td>
+<td>6.6%</td>
+<td>2.3%</td>
+<td>17.8%</td>
+<td>3.29%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>overall</td>
+<td>all</td>
+<td>1089</td>
+<td>91</td>
+<td>0.3%</td>
+<td>0.0%</td>
+<td>4.6%</td>
+<td>4.32%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>overall</td>
+<td>all</td>
+<td>1077</td>
+<td>45</td>
+<td>0.0%</td>
+<td>0.0%</td>
+<td>7.9%</td>
+<td>3.67%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>bucket</td>
+<td>calm</td>
+<td>337</td>
+<td>28</td>
+<td>0.0%</td>
+<td>0.0%</td>
+<td>12.0%</td>
+<td>7.44%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>bucket</td>
+<td>crisis</td>
+<td>57</td>
+<td>5</td>
+<td>0.0%</td>
+<td>0.0%</td>
+<td>44.7%</td>
+<td>6.75%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>bucket</td>
+<td>elevated</td>
+<td>284</td>
+<td>24</td>
+<td>0.4%</td>
+<td>0.0%</td>
+<td>14.6%</td>
+<td>4.24%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>bucket</td>
+<td>normal</td>
+<td>411</td>
+<td>34</td>
+<td>1.2%</td>
+<td>0.1%</td>
+<td>12.2%</td>
+<td>5.07%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>bucket</td>
+<td>calm</td>
+<td>336</td>
+<td>14</td>
+<td>1.2%</td>
+<td>0.0%</td>
+<td>23.4%</td>
+<td>6.67%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>bucket</td>
+<td>crisis</td>
+<td>56</td>
+<td>2</td>
+<td>0.0%</td>
+<td>0.0%</td>
+<td>62.2%</td>
+<td>3.25%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>bucket</td>
+<td>elevated</td>
+<td>280</td>
+<td>12</td>
+<td>0.4%</td>
+<td>0.0%</td>
+<td>25.3%</td>
+<td>2.66%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>bucket</td>
+<td>normal</td>
+<td>405</td>
+<td>17</td>
+<td>1.2%</td>
+<td>0.1%</td>
+<td>20.5%</td>
+<td>4.51%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>bucket</td>
+<td>calm</td>
+<td>337</td>
+<td>28</td>
+<td>4.2%</td>
+<td>0.8%</td>
+<td>18.5%</td>
+<td>3.40%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>bucket</td>
+<td>crisis</td>
+<td>57</td>
+<td>5</td>
+<td>10.5%</td>
+<td>1.1%</td>
+<td>55.2%</td>
+<td>9.93%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>bucket</td>
+<td>elevated</td>
+<td>284</td>
+<td>24</td>
+<td>16.9%</td>
+<td>6.8%</td>
+<td>36.3%</td>
+<td>2.37%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>bucket</td>
+<td>normal</td>
+<td>411</td>
+<td>34</td>
+<td>6.6%</td>
+<td>1.9%</td>
+<td>20.0%</td>
+<td>2.99%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>bucket</td>
+<td>calm</td>
+<td>336</td>
+<td>14</td>
+<td>3.6%</td>
+<td>0.4%</td>
+<td>26.8%</td>
+<td>2.78%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>bucket</td>
+<td>crisis</td>
+<td>56</td>
+<td>2</td>
+<td>10.7%</td>
+<td>0.6%</td>
+<td>69.7%</td>
+<td>7.22%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>bucket</td>
+<td>elevated</td>
+<td>280</td>
+<td>12</td>
+<td>11.8%</td>
+<td>2.6%</td>
+<td>39.9%</td>
+<td>2.91%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>bucket</td>
+<td>normal</td>
+<td>405</td>
+<td>17</td>
+<td>4.9%</td>
+<td>0.8%</td>
+<td>25.8%</td>
+<td>3.44%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>bucket</td>
+<td>calm</td>
+<td>337</td>
+<td>28</td>
+<td>0.0%</td>
+<td>0.0%</td>
+<td>12.0%</td>
+<td>6.51%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>bucket</td>
+<td>crisis</td>
+<td>57</td>
+<td>5</td>
+<td>0.0%</td>
+<td>0.0%</td>
+<td>44.7%</td>
+<td>1.75%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>bucket</td>
+<td>elevated</td>
+<td>284</td>
+<td>24</td>
+<td>0.0%</td>
+<td>0.0%</td>
+<td>14.0%</td>
+<td>2.72%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>bucket</td>
+<td>normal</td>
+<td>411</td>
+<td>34</td>
+<td>0.7%</td>
+<td>0.0%</td>
+<td>11.4%</td>
+<td>4.03%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>bucket</td>
+<td>calm</td>
+<td>336</td>
+<td>14</td>
+<td>0.0%</td>
+<td>0.0%</td>
+<td>21.5%</td>
+<td>5.30%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>bucket</td>
+<td>crisis</td>
+<td>56</td>
+<td>2</td>
+<td>0.0%</td>
+<td>0.0%</td>
+<td>62.2%</td>
+<td>1.07%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>bucket</td>
+<td>elevated</td>
+<td>280</td>
+<td>12</td>
+<td>0.0%</td>
+<td>0.0%</td>
+<td>24.8%</td>
+<td>1.91%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>bucket</td>
+<td>normal</td>
+<td>405</td>
+<td>17</td>
+<td>0.0%</td>
+<td>0.0%</td>
+<td>18.5%</td>
+<td>3.97%</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+<p class='src'>Source: scripts/07_report_numbers.py → results/report/tables/backtest_us_mkt.csv (from results/backtest/summary.parquet)</p>
+
+<p><strong>What this can and cannot show.</strong> Windows overlap, so 1,089 start dates carry
+only about 91 independent 1-year observations. The 95% upper bound on
+the realised breach rate is 5.1% overall and
+45% for crisis starts (effective n 5). The
+backtest can refute a badly wrong model, as it does for the no-floor Merton rule
+(8.7%). It cannot confirm a 2% bound. The knobs also carry a mild
+look-ahead (tuned on the full-sample model).
+<strong>The DP has not been backtested</strong>: its policy is solved on full-sample parameters, so a fair historical test needs re-solving at each refit date. This is further work (§8).</p>
+<h3 id="66-external-validity-other-assets-and-the-deployment-rule">6.6 External validity: other assets and the deployment rule</h3>
+<p>The committee will run the same procedure on other assets. We ran the full procedure on the 10 industry portfolios.
+Each asset gets its own estimates, states, tuning and λ calibration. No constants carry over from us_mkt.</p>
+<p><strong>Deployment rule</strong> (<code>src/gf/deployment.py</code>, decided before results were seen). Deploy gap-aware CPPI instead of the DP
+if (a) the fallback estimation window was triggered, (b) fewer than 70% of
+parameter draws are valid after the fallback, or (c) the PIT test rejects at 1 or 2 years.</p>
+<table>
+<thead>
+<tr>
+<th>asset</th>
+<th>flag_fallback_window</th>
+<th>fallback_reasons</th>
+<th>valid_draw_share</th>
+<th>flag_valid_draws</th>
+<th>flag_pit_reject</th>
+<th>pit_rejections</th>
+<th>chosen_strategy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>us_mkt</td>
+<td>False</td>
+<td></td>
+<td>100.0%</td>
+<td>False</td>
+<td>False</td>
+<td></td>
+<td>dp_premrobust</td>
+</tr>
+<tr>
+<td>ind_nodur</td>
+<td>False</td>
+<td></td>
+<td>100.0%</td>
+<td>False</td>
+<td>False</td>
+<td></td>
+<td>dp_premrobust</td>
+</tr>
+<tr>
+<td>ind_durbl</td>
+<td>False</td>
+<td></td>
+<td>100.0%</td>
+<td>False</td>
+<td>False</td>
+<td></td>
+<td>dp_premrobust</td>
+</tr>
+<tr>
+<td>ind_manuf</td>
+<td>False</td>
+<td></td>
+<td>100.0%</td>
+<td>False</td>
+<td>False</td>
+<td></td>
+<td>dp_premrobust</td>
+</tr>
+<tr>
+<td>ind_enrgy</td>
+<td>True</td>
+<td>valid draws 0.50 &lt; 0.7</td>
+<td>50.0%</td>
+<td>True</td>
+<td>False</td>
+<td></td>
+<td>cppi_vol</td>
+</tr>
+<tr>
+<td>ind_hitec</td>
+<td>False</td>
+<td></td>
+<td>100.0%</td>
+<td>False</td>
+<td>False</td>
+<td></td>
+<td>dp_premrobust</td>
+</tr>
+<tr>
+<td>ind_telcm</td>
+<td>True</td>
+<td>persistence 0.99996 &gt;= 0.998; valid draws 0.33 &lt; 0.7</td>
+<td>100.0%</td>
+<td>False</td>
+<td>True</td>
+<td>H=252 u&lt;0.01: too thin; H=252 u&lt;0.02: too thin; H=252 u&lt;0.05: too thin</td>
+<td>cppi_vol</td>
+</tr>
+<tr>
+<td>ind_shops</td>
+<td>True</td>
+<td>valid draws 0.50 &lt; 0.7</td>
+<td>100.0%</td>
+<td>False</td>
+<td>False</td>
+<td></td>
+<td>cppi_vol</td>
+</tr>
+<tr>
+<td>ind_hlth</td>
+<td>False</td>
+<td></td>
+<td>100.0%</td>
+<td>False</td>
+<td>False</td>
+<td></td>
+<td>dp_premrobust</td>
+</tr>
+<tr>
+<td>ind_utils</td>
+<td>True</td>
+<td>persistence 1.00000 &gt;= 0.998; valid draws 0.33 &lt; 0.7</td>
+<td>100.0%</td>
+<td>False</td>
+<td>False</td>
+<td></td>
+<td>cppi_vol</td>
+</tr>
+<tr>
+<td>ind_other</td>
+<td>False</td>
+<td></td>
+<td>100.0%</td>
+<td>False</td>
+<td>False</td>
+<td></td>
+<td>dp_premrobust</td>
+</tr>
+</tbody>
+</table>
+<p class='src'>Source: scripts/07_report_numbers.py → results/report/tables/deployment.csv (from gf.deployment.deployment_table → results/deployment.csv)</p>
+
+<figure>
+<p><img alt="Deployed strategy on every asset" src="figures/industries.png" /></p>
+<figcaption><strong>Deployed strategy on every asset.</strong> Deployed strategy on every asset (the rule's choice). Bars: maximum over the named-state × horizon cells; industries at 20,000 evaluation paths. Assets without a μ = 0 bar were not evaluated under that stress. Source: scripts/07_report_numbers.py → results/report/tables/industries.csv, results/deployment.csv</figcaption>
+</figure>
+<table>
+<thead>
+<tr>
+<th>asset</th>
+<th>strategy</th>
+<th>n_cells</th>
+<th>worst_max</th>
+<th>base_max</th>
+<th>mu_zero_max</th>
+<th>fat_tails_max</th>
+<th>jump_max</th>
+<th>ce_min</th>
+<th>ce_median</th>
+<th>ce_max</th>
+<th>n_robust_scen</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>us_mkt</td>
+<td>Deployed (Premium-robust DP)</td>
+<td>10</td>
+<td>0.95%</td>
+<td>0.91%</td>
+<td>1.75%</td>
+<td>3.45%</td>
+<td>1.25%</td>
+<td>1.06%</td>
+<td>2.05%</td>
+<td>2.48%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>us_mkt</td>
+<td>Premium-robust DP</td>
+<td>10</td>
+<td>0.95%</td>
+<td>0.91%</td>
+<td>1.75%</td>
+<td>3.45%</td>
+<td>1.25%</td>
+<td>1.06%</td>
+<td>2.05%</td>
+<td>2.48%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>us_mkt</td>
+<td>Gap-aware CPPI</td>
+<td>10</td>
+<td>1.33%</td>
+<td>0.38%</td>
+<td>0.43%</td>
+<td>2.69%</td>
+<td>1.63%</td>
+<td>0.43%</td>
+<td>1.79%</td>
+<td>2.35%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>us_mkt</td>
+<td>OBPI</td>
+<td>10</td>
+<td>1.47%</td>
+<td>0.71%</td>
+<td>1.06%</td>
+<td>1.09%</td>
+<td>1.23%</td>
+<td>0.05%</td>
+<td>0.95%</td>
+<td>2.08%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_nodur</td>
+<td>Deployed (Premium-robust DP)</td>
+<td>10</td>
+<td>0.92%</td>
+<td>0.77%</td>
+<td>1.89%</td>
+<td>2.79%</td>
+<td>1.21%</td>
+<td>0.89%</td>
+<td>2.15%</td>
+<td>2.72%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_nodur</td>
+<td>Premium-robust DP</td>
+<td>10</td>
+<td>0.92%</td>
+<td>0.77%</td>
+<td>1.89%</td>
+<td>2.79%</td>
+<td>1.21%</td>
+<td>0.89%</td>
+<td>2.15%</td>
+<td>2.72%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_nodur</td>
+<td>Gap-aware CPPI</td>
+<td>10</td>
+<td>1.31%</td>
+<td>0.39%</td>
+<td>0.48%</td>
+<td>2.52%</td>
+<td>1.62%</td>
+<td>0.04%</td>
+<td>1.86%</td>
+<td>2.55%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_nodur</td>
+<td>OBPI</td>
+<td>10</td>
+<td>1.39%</td>
+<td>0.91%</td>
+<td>1.19%</td>
+<td>0.98%</td>
+<td>1.28%</td>
+<td>0.05%</td>
+<td>1.23%</td>
+<td>2.27%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_durbl</td>
+<td>Deployed (Premium-robust DP)</td>
+<td>10</td>
+<td>1.00%</td>
+<td>0.76%</td>
+<td>1.58%</td>
+<td>2.47%</td>
+<td>1.06%</td>
+<td>0.27%</td>
+<td>1.17%</td>
+<td>2.02%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_durbl</td>
+<td>Premium-robust DP</td>
+<td>10</td>
+<td>1.00%</td>
+<td>0.76%</td>
+<td>1.58%</td>
+<td>2.47%</td>
+<td>1.06%</td>
+<td>0.27%</td>
+<td>1.17%</td>
+<td>2.02%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_durbl</td>
+<td>Gap-aware CPPI</td>
+<td>10</td>
+<td>1.68%</td>
+<td>0.97%</td>
+<td>1.08%</td>
+<td>5.32%</td>
+<td>2.07%</td>
+<td>-1.92%</td>
+<td>0.42%</td>
+<td>1.66%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_durbl</td>
+<td>OBPI</td>
+<td>10</td>
+<td>1.12%</td>
+<td>0.89%</td>
+<td>1.17%</td>
+<td>1.88%</td>
+<td>1.44%</td>
+<td>0.06%</td>
+<td>0.54%</td>
+<td>1.58%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_manuf</td>
+<td>Deployed (Premium-robust DP)</td>
+<td>10</td>
+<td>0.73%</td>
+<td>0.64%</td>
+<td>1.52%</td>
+<td>2.33%</td>
+<td>1.01%</td>
+<td>0.74%</td>
+<td>1.82%</td>
+<td>2.31%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_manuf</td>
+<td>Premium-robust DP</td>
+<td>10</td>
+<td>0.73%</td>
+<td>0.64%</td>
+<td>1.52%</td>
+<td>2.33%</td>
+<td>1.01%</td>
+<td>0.74%</td>
+<td>1.82%</td>
+<td>2.31%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_manuf</td>
+<td>Gap-aware CPPI</td>
+<td>10</td>
+<td>1.49%</td>
+<td>0.33%</td>
+<td>0.40%</td>
+<td>2.50%</td>
+<td>1.35%</td>
+<td>-0.15%</td>
+<td>1.53%</td>
+<td>2.15%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_manuf</td>
+<td>OBPI</td>
+<td>10</td>
+<td>1.65%</td>
+<td>1.15%</td>
+<td>1.74%</td>
+<td>1.20%</td>
+<td>1.22%</td>
+<td>0.04%</td>
+<td>0.87%</td>
+<td>1.92%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_enrgy</td>
+<td>Deployed (Gap-aware CPPI)</td>
+<td>10</td>
+<td>1.61%</td>
+<td>0.50%</td>
+<td>0.57%</td>
+<td>1.47%</td>
+<td>1.32%</td>
+<td>-2.09%</td>
+<td>0.57%</td>
+<td>1.64%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_enrgy</td>
+<td>Premium-robust DP</td>
+<td>10</td>
+<td>1.29%</td>
+<td>0.98%</td>
+<td>2.24%</td>
+<td>1.24%</td>
+<td>1.21%</td>
+<td>0.21%</td>
+<td>1.25%</td>
+<td>1.97%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_enrgy</td>
+<td>Gap-aware CPPI</td>
+<td>10</td>
+<td>1.61%</td>
+<td>0.50%</td>
+<td>0.57%</td>
+<td>1.47%</td>
+<td>1.32%</td>
+<td>-2.09%</td>
+<td>0.57%</td>
+<td>1.64%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_enrgy</td>
+<td>OBPI</td>
+<td>10</td>
+<td>1.29%</td>
+<td>1.05%</td>
+<td>1.19%</td>
+<td>0.95%</td>
+<td>1.15%</td>
+<td>0.04%</td>
+<td>0.66%</td>
+<td>1.59%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_hitec</td>
+<td>Deployed (Premium-robust DP)</td>
+<td>10</td>
+<td>0.64%</td>
+<td>0.56%</td>
+<td>1.63%</td>
+<td>1.61%</td>
+<td>0.77%</td>
+<td>0.52%</td>
+<td>1.72%</td>
+<td>2.44%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_hitec</td>
+<td>Premium-robust DP</td>
+<td>10</td>
+<td>0.64%</td>
+<td>0.56%</td>
+<td>1.63%</td>
+<td>1.61%</td>
+<td>0.77%</td>
+<td>0.52%</td>
+<td>1.72%</td>
+<td>2.44%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_hitec</td>
+<td>Gap-aware CPPI</td>
+<td>10</td>
+<td>1.35%</td>
+<td>0.57%</td>
+<td>0.66%</td>
+<td>2.61%</td>
+<td>1.54%</td>
+<td>-0.79%</td>
+<td>1.27%</td>
+<td>2.19%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_hitec</td>
+<td>OBPI</td>
+<td>10</td>
+<td>1.57%</td>
+<td>1.21%</td>
+<td>1.79%</td>
+<td>1.35%</td>
+<td>1.36%</td>
+<td>0.05%</td>
+<td>0.78%</td>
+<td>1.97%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_telcm</td>
+<td>Deployed (Gap-aware CPPI)</td>
+<td>10</td>
+<td>1.80%</td>
+<td>0.56%</td>
+<td>0.56%</td>
+<td>2.04%</td>
+<td>1.66%</td>
+<td>-0.65%</td>
+<td>0.33%</td>
+<td>0.66%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_telcm</td>
+<td>Premium-robust DP</td>
+<td>10</td>
+<td>1.18%</td>
+<td>0.73%</td>
+<td>1.21%</td>
+<td>1.06%</td>
+<td>1.17%</td>
+<td>0.43%</td>
+<td>0.73%</td>
+<td>0.90%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_telcm</td>
+<td>Gap-aware CPPI</td>
+<td>10</td>
+<td>1.80%</td>
+<td>0.56%</td>
+<td>0.56%</td>
+<td>2.04%</td>
+<td>1.66%</td>
+<td>-0.65%</td>
+<td>0.33%</td>
+<td>0.66%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_telcm</td>
+<td>OBPI</td>
+<td>10</td>
+<td>1.24%</td>
+<td>0.92%</td>
+<td>1.23%</td>
+<td>1.08%</td>
+<td>1.31%</td>
+<td>0.03%</td>
+<td>0.34%</td>
+<td>0.75%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_shops</td>
+<td>Deployed (Gap-aware CPPI)</td>
+<td>10</td>
+<td>1.41%</td>
+<td>0.83%</td>
+<td>0.97%</td>
+<td>1.97%</td>
+<td>1.82%</td>
+<td>0.54%</td>
+<td>1.96%</td>
+<td>2.57%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_shops</td>
+<td>Premium-robust DP</td>
+<td>10</td>
+<td>1.04%</td>
+<td>0.74%</td>
+<td>1.85%</td>
+<td>1.11%</td>
+<td>1.03%</td>
+<td>1.42%</td>
+<td>2.37%</td>
+<td>2.79%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_shops</td>
+<td>Gap-aware CPPI</td>
+<td>10</td>
+<td>1.41%</td>
+<td>0.83%</td>
+<td>0.97%</td>
+<td>1.97%</td>
+<td>1.82%</td>
+<td>0.54%</td>
+<td>1.96%</td>
+<td>2.57%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_shops</td>
+<td>OBPI</td>
+<td>10</td>
+<td>1.30%</td>
+<td>0.60%</td>
+<td>0.97%</td>
+<td>0.85%</td>
+<td>1.51%</td>
+<td>0.13%</td>
+<td>1.26%</td>
+<td>2.37%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_hlth</td>
+<td>Deployed (Premium-robust DP)</td>
+<td>10</td>
+<td>0.85%</td>
+<td>0.81%</td>
+<td>1.69%</td>
+<td>1.94%</td>
+<td>1.17%</td>
+<td>1.04%</td>
+<td>2.10%</td>
+<td>2.46%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_hlth</td>
+<td>Premium-robust DP</td>
+<td>10</td>
+<td>0.85%</td>
+<td>0.81%</td>
+<td>1.69%</td>
+<td>1.94%</td>
+<td>1.17%</td>
+<td>1.04%</td>
+<td>2.10%</td>
+<td>2.46%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_hlth</td>
+<td>Gap-aware CPPI</td>
+<td>10</td>
+<td>1.49%</td>
+<td>0.40%</td>
+<td>0.48%</td>
+<td>2.56%</td>
+<td>1.39%</td>
+<td>0.26%</td>
+<td>1.75%</td>
+<td>2.25%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_hlth</td>
+<td>OBPI</td>
+<td>10</td>
+<td>1.35%</td>
+<td>1.10%</td>
+<td>1.74%</td>
+<td>1.42%</td>
+<td>1.31%</td>
+<td>0.06%</td>
+<td>1.20%</td>
+<td>2.02%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_utils</td>
+<td>Deployed (Gap-aware CPPI)</td>
+<td>10</td>
+<td>1.52%</td>
+<td>1.01%</td>
+<td>1.26%</td>
+<td>3.56%</td>
+<td>2.04%</td>
+<td>-1.07%</td>
+<td>1.24%</td>
+<td>1.94%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_utils</td>
+<td>Premium-robust DP</td>
+<td>10</td>
+<td>1.11%</td>
+<td>1.08%</td>
+<td>1.73%</td>
+<td>2.21%</td>
+<td>1.21%</td>
+<td>0.54%</td>
+<td>1.62%</td>
+<td>2.12%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_utils</td>
+<td>Gap-aware CPPI</td>
+<td>10</td>
+<td>1.52%</td>
+<td>1.01%</td>
+<td>1.26%</td>
+<td>3.56%</td>
+<td>2.04%</td>
+<td>-1.07%</td>
+<td>1.24%</td>
+<td>1.94%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_utils</td>
+<td>OBPI</td>
+<td>10</td>
+<td>1.08%</td>
+<td>0.63%</td>
+<td>0.69%</td>
+<td>1.00%</td>
+<td>1.31%</td>
+<td>0.06%</td>
+<td>0.96%</td>
+<td>1.84%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_other</td>
+<td>Deployed (Premium-robust DP)</td>
+<td>10</td>
+<td>0.75%</td>
+<td>0.75%</td>
+<td>1.98%</td>
+<td>2.94%</td>
+<td>1.13%</td>
+<td>0.85%</td>
+<td>1.52%</td>
+<td>1.92%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_other</td>
+<td>Premium-robust DP</td>
+<td>10</td>
+<td>0.75%</td>
+<td>0.75%</td>
+<td>1.98%</td>
+<td>2.94%</td>
+<td>1.13%</td>
+<td>0.85%</td>
+<td>1.52%</td>
+<td>1.92%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_other</td>
+<td>Gap-aware CPPI</td>
+<td>10</td>
+<td>1.35%</td>
+<td>0.56%</td>
+<td>0.61%</td>
+<td>3.44%</td>
+<td>1.74%</td>
+<td>0.05%</td>
+<td>1.24%</td>
+<td>1.75%</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ind_other</td>
+<td>OBPI</td>
+<td>10</td>
+<td>1.57%</td>
+<td>1.08%</td>
+<td>1.62%</td>
+<td>1.54%</td>
+<td>1.34%</td>
+<td>0.04%</td>
+<td>0.66%</td>
+<td>1.60%</td>
+<td>5</td>
+</tr>
+</tbody>
+</table>
+<p class='src'>Source: scripts/07_report_numbers.py → results/report/tables/industries.csv (from results/mc, results_dp_mu/mc, results_ind_extra/mc summary.parquet)</p>
+
+<ul>
+<li><strong>The deployed strategy's worst case stays below 2% on every asset evaluated</strong> (max
+  1.80%, telcm). It is above the
+  1.25% tuning target in some industry cells. Industries use 10,000 tuning
+  paths, so tuning noise is larger there.</li>
+<li><strong>DP on industries</strong> (durbl, enrgy, hitec, hlth, manuf, nodur, other, shops, telcm, utils, us_mkt): the DP's CE − cash beats gap-aware CPPI in
+  100 of 100 industry cells (by +16 to
+  +230 bp/yr).</li>
+<li><strong>DP misses and the rule.</strong> The DP exceeds 2% in 1 industry cell(s) under the robust set or a zero premium: enrgy normal T = 2 under mu_zero (2.24%). The rule routes 1 of 1 of these assets to CPPI, so <strong>the deployed strategy never contains a DP miss</strong>.- <strong>Thin margins under a zero premium</strong> (deployed DP within two standard errors of 2%): nodur normal T = 1 1.89% (SE 0.10 pp); other normal T = 2 1.98% (SE 0.10 pp). These count as passes, but they can't be distinguished from the limit.</li>
+<li><strong>Fat tails (ν = 3) on industries.</strong> The deployed DP exceeds 2% in 9 cells on durbl, manuf, nodur, other, us_mkt (max 3.45%), mostly crisis/extreme starts. This is the same failure as on us_mkt and is outside the robust set (§6.3, §7).</li>
+<li><strong>Simple rules on all industries</strong> (SPEC 03 robust set): gap-aware CPPI worst case max 1.80%,
+  OBPI 1.65%.</li>
+</ul>
+<p><strong>A cost of the fallback.</strong> On flagged assets, gap-aware CPPI can earn <em>less than cash</em> from crisis or extreme starts
+(deployed minimum CE − cash -2.09%, enrgy). This is not
+a lock into cash: only 0.7%–4.6% of paths
+hold φ ≈ 0 at the end. It is a <em>soft lock-in</em>. With m = 1/(zσ), an unclipped cushion has a constant daily volatility of
+1/z (16%–22% in these cells), so most paths bleed their cushion within weeks of a high-volatility start. They then end just above the
+conservative floor: 46%–69% of paths finish within
+2% of it, against 35% in other cells. Mean wealth still beats cash; the γ = 2 CE
+does not.</p>
+<table>
+<thead>
+<tr>
+<th>asset</th>
+<th>state</th>
+<th>T</th>
+<th>sigma0</th>
+<th>z</th>
+<th>cushion_daily_vol</th>
+<th>ce_xcash</th>
+<th>locked_cash_share</th>
+<th>phi_avg</th>
+<th>p_near_floor</th>
+<th>median_W</th>
+<th>mean_W</th>
+<th>breach_base</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ind_enrgy</td>
+<td>extreme</td>
+<td>1</td>
+<td>140.5%</td>
+<td>4.66</td>
+<td>21.4%</td>
+<td>-2.09%</td>
+<td>4.6%</td>
+<td>0.19</td>
+<td>69.3%</td>
+<td>95.71</td>
+<td>104.44</td>
+<td>0.43%</td>
+</tr>
+<tr>
+<td>ind_durbl</td>
+<td>extreme</td>
+<td>1</td>
+<td>126.7%</td>
+<td>4.89</td>
+<td>20.5%</td>
+<td>-1.92%</td>
+<td>3.3%</td>
+<td>0.22</td>
+<td>65.2%</td>
+<td>95.90</td>
+<td>103.93</td>
+<td>0.88%</td>
+</tr>
+<tr>
+<td>ind_utils</td>
+<td>extreme</td>
+<td>1</td>
+<td>104.7%</td>
+<td>4.45</td>
+<td>22.5%</td>
+<td>-1.07%</td>
+<td>1.7%</td>
+<td>0.32</td>
+<td>58.8%</td>
+<td>95.93</td>
+<td>104.23</td>
+<td>0.99%</td>
+</tr>
+<tr>
+<td>ind_enrgy</td>
+<td>crisis</td>
+<td>1</td>
+<td>75.1%</td>
+<td>4.72</td>
+<td>21.2%</td>
+<td>-0.97%</td>
+<td>2.3%</td>
+<td>0.29</td>
+<td>62.8%</td>
+<td>95.90</td>
+<td>104.74</td>
+<td>0.38%</td>
+</tr>
+<tr>
+<td>ind_durbl</td>
+<td>crisis</td>
+<td>1</td>
+<td>72.6%</td>
+<td>4.87</td>
+<td>20.5%</td>
+<td>-0.88%</td>
+<td>2.0%</td>
+<td>0.31</td>
+<td>59.6%</td>
+<td>96.08</td>
+<td>104.54</td>
+<td>0.84%</td>
+</tr>
+<tr>
+<td>ind_hitec</td>
+<td>extreme</td>
+<td>1</td>
+<td>154.5%</td>
+<td>5.78</td>
+<td>17.3%</td>
+<td>-0.79%</td>
+<td>1.7%</td>
+<td>0.27</td>
+<td>53.1%</td>
+<td>96.59</td>
+<td>104.47</td>
+<td>0.28%</td>
+</tr>
+<tr>
+<td>ind_telcm</td>
+<td>extreme</td>
+<td>1</td>
+<td>88.8%</td>
+<td>4.68</td>
+<td>21.4%</td>
+<td>-0.65%</td>
+<td>0.8%</td>
+<td>0.39</td>
+<td>54.2%</td>
+<td>96.28</td>
+<td>103.98</td>
+<td>0.56%</td>
+</tr>
+<tr>
+<td>ind_enrgy</td>
+<td>extreme</td>
+<td>2</td>
+<td>140.5%</td>
+<td>4.80</td>
+<td>20.8%</td>
+<td>-0.62%</td>
+<td>1.4%</td>
+<td>0.28</td>
+<td>54.6%</td>
+<td>96.38</td>
+<td>109.80</td>
+<td>0.43%</td>
+</tr>
+<tr>
+<td>ind_durbl</td>
+<td>extreme</td>
+<td>2</td>
+<td>126.7%</td>
+<td>4.83</td>
+<td>20.7%</td>
+<td>-0.52%</td>
+<td>1.5%</td>
+<td>0.31</td>
+<td>51.2%</td>
+<td>96.69</td>
+<td>109.42</td>
+<td>0.90%</td>
+</tr>
+<tr>
+<td>ind_telcm</td>
+<td>crisis</td>
+<td>1</td>
+<td>52.1%</td>
+<td>4.65</td>
+<td>21.5%</td>
+<td>-0.18%</td>
+<td>0.7%</td>
+<td>0.47</td>
+<td>50.3%</td>
+<td>96.70</td>
+<td>104.21</td>
+<td>0.52%</td>
+</tr>
+<tr>
+<td>ind_manuf</td>
+<td>extreme</td>
+<td>1</td>
+<td>134.5%</td>
+<td>6.15</td>
+<td>16.3%</td>
+<td>-0.15%</td>
+<td>0.8%</td>
+<td>0.35</td>
+<td>45.9%</td>
+<td>97.39</td>
+<td>104.44</td>
+<td>0.24%</td>
+</tr>
+</tbody>
+</table>
+<p class='src'>Source: scripts/07_report_numbers.py → results/report/tables/cppi_gap_negative_ce.csv (from results/mc/summary.parquet + terminal subsamples)</p>
+
+<h2 id="7-when-to-use-it-and-when-not-brief-q4">7. When to use it, and when not (brief Q4)</h2>
+<p><strong>Use it</strong> on a broad equity portfolio with a long, stable daily history. That means the asset's diagnostics are clean
+(no fallback window, valid parameter draws, PIT not rejected), the horizon is 1–2 years, and the strategy can trade
+every day.</p>
+<p><strong>Do not rely on it</strong> in these cases:</p>
+<ol>
+<li><strong>Crash risk beyond the data.</strong> Under ν = 3 tails both the DP and gap-aware CPPI exceed
+   2% from some starts (DP up to 3.45% from crisis/extreme starts
+   at T = 1 on us_mkt; 9 industry cells, up to 3.45%). If the committee believes single-day losses much larger than 1987 are plausible, use OBPI or a lower
+   tuning target.</li>
+<li><strong>A premium far below our estimate.</strong> The premium-robust DP holds at zero premium on us_mkt, but with a thin margin
+   in some cells (0.25 pp on us_mkt; nodur 1.89%, other 1.98%) and not on every industry. If the premium is in
+   serious doubt, deploy gap-aware CPPI: it is nearly premium-insensitive.</li>
+<li><strong>Assets flagged by the diagnostics</strong> (fallback window, &lt; 70% valid draws, PIT
+   rejection). The rule already sends these to CPPI.</li>
+<li><strong>Short or structurally broken histories.</strong> Persistence near 1 means level shifts are being read as volatility.
+   A fallback window helps, but on a short window the PIT test has too few independent observations to detect miscalibration.</li>
+<li><strong>Very short horizons from crisis starts.</strong> The strategy is mostly cash and CE − cash is small
+   (1.1% at T = 1 from the extreme state; below cash for CPPI on some industries).</li>
+<li><strong>Large rate moves.</strong> The DP holds the rate fixed. Rate-driven breaches are 15% of
+   its T = 2 breaches, and the conservative floor is the only defence.</li>
+<li><strong>Anything that breaks daily trading</strong>: overnight gaps larger than the model's one-day tail, trading halts, or real
+   transaction costs. The breach control relies on rebalancing before the cushion is gone.</li>
+</ol>
+<h2 id="8-advice-brief-q5">8. Advice (brief Q5)</h2>
+<ul>
+<li><strong>Re-estimate</strong> the model and re-run tuning and calibration at least annually, and immediately after a volatility
+  regime change that moves σ_t outside the range of the named states. The pipeline is a single procedure
+  (<code>scripts/01</code>–<code>09</code>), so this is a re-run, not a research project.</li>
+<li><strong>Check the diagnostics before switching on</strong>, every time: fallback trigger, valid-draw share, PIT verdict. The
+  deployment rule is code (<code>gf.deployment.deployment_choice</code>) and should be run, not remembered.</li>
+<li><strong>If the premium is doubted, deploy the CPPI fallback.</strong> It gives up +13 to
+  +63 bp/yr of CE on us_mkt but removes most premium dependence.</li>
+<li><strong>Remove reinvestment risk with a horizon-matched zero-coupon bond</strong> (outside the current mandate). The floor would
+  then be K × the bond price, and the conservative discount and rate-driven breaches would disappear.</li>
+<li><strong>Extensions:</strong> the rate as a fourth DP state variable; full DP validation (V1–V6) on every asset; a DP backtest with
+  re-solving at each refit; a finer λ grid (the current grid overshoots the target, costing CE); transaction costs.</li>
+</ul>
+<div class="pb"></div>
+
+<h2 id="appendix-a-reproducibility">Appendix A: Reproducibility</h2>
+<p><strong>Fast path</strong> (from committed results, minutes): <code>python scripts/07_report_numbers.py</code> then
+<code>python scripts/08_build_report.py</code> rebuilds <code>results/report/numbers.json</code>, every table, every figure,
+<code>deliverables/report.pdf</code> and <code>deliverables/deck.pdf</code>. <strong>Full path</strong> (several hours on 8 cores; run times per stage in DECISIONS.md): stages 01–06 as listed in
+DECISIONS.md and README.md, then 07–09.</p>
+<ul>
+<li><strong>Seeds.</strong> Model fitting 20261120; Monte Carlo master seed 20261121. Every cell's tuning and
+  evaluation seed is a hash of (master seed, asset, "tune"/"eval"), so all strategies in a cell share paths.
+  us_mkt: tune 808879553790532705, eval 22189377091890336.</li>
+<li><strong>Paths.</strong> Tuning 20,000 (us_mkt) / 10,000 (industries); evaluation
+  50,000 / 20,000.</li>
+<li><strong>Data hashes</strong> (SHA-256):</li>
+<li><code>F-F_Research_Data_Factors_daily.csv</code>: <code>3f7910502dd6f188748210e5145d95642de1d8cff56c2cf0fa85985299610ff0</code> (1926-07-01 to 2026-09-30, downloaded 2026-10-26)</li>
+<li><code>F-F_Research_Data_Factors.csv</code>: <code>a3894d74d553cab812eabbe706bdbf443c97eb20b24b05e3e5f3ce47e46b90bb</code> (1926-07-31 to 2026-09-30, downloaded 2026-10-26)</li>
+<li><code>10_Industry_Portfolios_Daily.csv</code>: <code>01cfe3d5e54f6ddfcc3dc84fb793f10f6b0218fe59f780969f4dca84e72e823e</code> (1926-07-01 to 2026-09-30, downloaded 2026-10-26)</li>
+<li><strong>Code.</strong> SPEC 03 run at commit <code>9773244d50a13e39100c0b797d83d09d4ddbd288</code>; this report from the commit tagged in the
+  submission README.</li>
+<li><strong>Every number in this report</strong> is a key in <code>results/report/numbers.json</code> or a row in <code>results/report/tables/</code>,
+  written by <code>scripts/07_report_numbers.py</code>. The map from report items to keys is the table at the top of DECISIONS.md.</li>
+</ul>
+<h2 id="appendix-b-additional-tables">Appendix B: Additional tables</h2>
+<p><strong>B.1 us_mkt: every strategy, named state and horizon</strong> (breach in %, CE − cash in %/yr annualised).</p>
+<table>
+<thead>
+<tr>
+<th>strategy</th>
+<th>state</th>
+<th>T</th>
+<th>breach_base</th>
+<th>breach_worst</th>
+<th>worst_scen</th>
+<th>breach_mu_low</th>
+<th>breach_mu_zero</th>
+<th>breach_fat_tails</th>
+<th>breach_jump</th>
+<th>ce_xcash</th>
+<th>phi_avg</th>
+<th>turnover</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Premium-robust DP</td>
+<td>calm</td>
+<td>1</td>
+<td>0.14%</td>
+<td>0.22%</td>
+<td>dgp_garch_t</td>
+<td>0.21%</td>
+<td>0.34%</td>
+<td>0.79%</td>
+<td>0.53%</td>
+<td>2.48%</td>
+<td>0.79</td>
+<td>6.03</td>
+</tr>
+<tr>
+<td>Premium-robust DP</td>
+<td>calm</td>
+<td>2</td>
+<td>0.36%</td>
+<td>0.38%</td>
+<td>fhs</td>
+<td>0.62%</td>
+<td>1.16%</td>
+<td>0.85%</td>
+<td>0.71%</td>
+<td>2.45%</td>
+<td>0.79</td>
+<td>11.92</td>
+</tr>
+<tr>
+<td>Premium-robust DP</td>
+<td>normal</td>
+<td>1</td>
+<td>0.79%</td>
+<td>0.88%</td>
+<td>dgp_garch_t</td>
+<td>1.12%</td>
+<td>1.75%</td>
+<td>1.85%</td>
+<td>1.25%</td>
+<td>2.38%</td>
+<td>0.78</td>
+<td>6.86</td>
+</tr>
+<tr>
+<td>Premium-robust DP</td>
+<td>normal</td>
+<td>2</td>
+<td>0.37%</td>
+<td>0.39%</td>
+<td>fhs</td>
+<td>0.61%</td>
+<td>1.12%</td>
+<td>0.89%</td>
+<td>0.72%</td>
+<td>2.36%</td>
+<td>0.76</td>
+<td>13.01</td>
+</tr>
+<tr>
+<td>Premium-robust DP</td>
+<td>elevated</td>
+<td>1</td>
+<td>0.35%</td>
+<td>0.43%</td>
+<td>dgp_garch_t</td>
+<td>0.51%</td>
+<td>0.76%</td>
+<td>1.49%</td>
+<td>0.70%</td>
+<td>1.94%</td>
+<td>0.65</td>
+<td>7.09</td>
+</tr>
+<tr>
+<td>Premium-robust DP</td>
+<td>elevated</td>
+<td>2</td>
+<td>0.27%</td>
+<td>0.31%</td>
+<td>fhs</td>
+<td>0.48%</td>
+<td>0.83%</td>
+<td>0.86%</td>
+<td>0.56%</td>
+<td>2.14%</td>
+<td>0.70</td>
+<td>12.95</td>
+</tr>
+<tr>
+<td>Premium-robust DP</td>
+<td>crisis</td>
+<td>1</td>
+<td>0.77%</td>
+<td>0.86%</td>
+<td>dgp_garch_t</td>
+<td>1.08%</td>
+<td>1.50%</td>
+<td>2.64%</td>
+<td>1.10%</td>
+<td>1.54%</td>
+<td>0.54</td>
+<td>6.14</td>
+</tr>
+<tr>
+<td>Premium-robust DP</td>
+<td>crisis</td>
+<td>2</td>
+<td>0.63%</td>
+<td>0.63%</td>
+<td>base</td>
+<td>0.99%</td>
+<td>1.65%</td>
+<td>1.45%</td>
+<td>0.87%</td>
+<td>1.97%</td>
+<td>0.65</td>
+<td>11.90</td>
+</tr>
+<tr>
+<td>Premium-robust DP</td>
+<td>extreme</td>
+<td>1</td>
+<td>0.91%</td>
+<td>0.95%</td>
+<td>param_unc</td>
+<td>1.20%</td>
+<td>1.58%</td>
+<td>3.45%</td>
+<td>1.21%</td>
+<td>1.06%</td>
+<td>0.39</td>
+<td>4.83</td>
+</tr>
+<tr>
+<td>Premium-robust DP</td>
+<td>extreme</td>
+<td>2</td>
+<td>0.36%</td>
+<td>0.36%</td>
+<td>param_unc</td>
+<td>0.54%</td>
+<td>0.89%</td>
+<td>1.23%</td>
+<td>0.63%</td>
+<td>1.68%</td>
+<td>0.56</td>
+<td>10.55</td>
+</tr>
+<tr>
+<td>DP (base λ*)</td>
+<td>calm</td>
+<td>1</td>
+<td>0.77%</td>
+<td>0.84%</td>
+<td>dgp_garch_t</td>
+<td>1.16%</td>
+<td>1.78%</td>
+<td>1.65%</td>
+<td>1.29%</td>
+<td>2.55%</td>
+<td>0.81</td>
+<td>5.78</td>
+</tr>
+<tr>
+<td>DP (base λ*)</td>
+<td>calm</td>
+<td>2</td>
+<td>1.06%</td>
+<td>1.12%</td>
+<td>dgp_garch_t</td>
+<td>1.93%</td>
+<td>3.25%</td>
+<td>1.51%</td>
+<td>1.47%</td>
+<td>2.53%</td>
+<td>0.81</td>
+<td>11.35</td>
+</tr>
+<tr>
+<td>DP (base λ*)</td>
+<td>normal</td>
+<td>1</td>
+<td>0.79%</td>
+<td>0.88%</td>
+<td>dgp_garch_t</td>
+<td>1.12%</td>
+<td>1.75%</td>
+<td>1.85%</td>
+<td>1.25%</td>
+<td>2.38%</td>
+<td>0.78</td>
+<td>6.86</td>
+</tr>
+<tr>
+<td>DP (base λ*)</td>
+<td>normal</td>
+<td>2</td>
+<td>0.37%</td>
+<td>0.39%</td>
+<td>fhs</td>
+<td>0.61%</td>
+<td>1.12%</td>
+<td>0.89%</td>
+<td>0.72%</td>
+<td>2.36%</td>
+<td>0.76</td>
+<td>13.01</td>
+</tr>
+<tr>
+<td>DP (base λ*)</td>
+<td>elevated</td>
+<td>1</td>
+<td>0.35%</td>
+<td>0.43%</td>
+<td>dgp_garch_t</td>
+<td>0.51%</td>
+<td>0.76%</td>
+<td>1.49%</td>
+<td>0.70%</td>
+<td>1.94%</td>
+<td>0.65</td>
+<td>7.09</td>
+</tr>
+<tr>
+<td>DP (base λ*)</td>
+<td>elevated</td>
+<td>2</td>
+<td>0.92%</td>
+<td>0.94%</td>
+<td>dgp_garch_t</td>
+<td>1.52%</td>
+<td>2.50%</td>
+<td>1.63%</td>
+<td>1.23%</td>
+<td>2.21%</td>
+<td>0.73</td>
+<td>12.87</td>
+</tr>
+<tr>
+<td>DP (base λ*)</td>
+<td>crisis</td>
+<td>1</td>
+<td>0.77%</td>
+<td>0.86%</td>
+<td>dgp_garch_t</td>
+<td>1.08%</td>
+<td>1.50%</td>
+<td>2.64%</td>
+<td>1.10%</td>
+<td>1.54%</td>
+<td>0.54</td>
+<td>6.14</td>
+</tr>
+<tr>
+<td>DP (base λ*)</td>
+<td>crisis</td>
+<td>2</td>
+<td>0.63%</td>
+<td>0.63%</td>
+<td>base</td>
+<td>0.99%</td>
+<td>1.65%</td>
+<td>1.45%</td>
+<td>0.87%</td>
+<td>1.97%</td>
+<td>0.65</td>
+<td>11.90</td>
+</tr>
+<tr>
+<td>DP (base λ*)</td>
+<td>extreme</td>
+<td>1</td>
+<td>0.91%</td>
+<td>0.95%</td>
+<td>param_unc</td>
+<td>1.20%</td>
+<td>1.58%</td>
+<td>3.45%</td>
+<td>1.21%</td>
+<td>1.06%</td>
+<td>0.39</td>
+<td>4.83</td>
+</tr>
+<tr>
+<td>DP (base λ*)</td>
+<td>extreme</td>
+<td>2</td>
+<td>0.36%</td>
+<td>0.36%</td>
+<td>param_unc</td>
+<td>0.54%</td>
+<td>0.89%</td>
+<td>1.23%</td>
+<td>0.63%</td>
+<td>1.68%</td>
+<td>0.56</td>
+<td>10.55</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>calm</td>
+<td>1</td>
+<td>0.25%</td>
+<td>1.30%</td>
+<td>fhs</td>
+<td>0.28%</td>
+<td>0.30%</td>
+<td>2.35%</td>
+<td>1.23%</td>
+<td>2.35%</td>
+<td>0.78</td>
+<td>5.61</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>calm</td>
+<td>2</td>
+<td>0.38%</td>
+<td>1.28%</td>
+<td>fhs</td>
+<td>0.40%</td>
+<td>0.43%</td>
+<td>2.16%</td>
+<td>1.63%</td>
+<td>2.05%</td>
+<td>0.71</td>
+<td>13.17</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>normal</td>
+<td>1</td>
+<td>0.26%</td>
+<td>1.28%</td>
+<td>fhs</td>
+<td>0.28%</td>
+<td>0.31%</td>
+<td>2.44%</td>
+<td>1.18%</td>
+<td>2.17%</td>
+<td>0.75</td>
+<td>6.49</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>normal</td>
+<td>2</td>
+<td>0.37%</td>
+<td>1.26%</td>
+<td>fhs</td>
+<td>0.39%</td>
+<td>0.42%</td>
+<td>2.16%</td>
+<td>1.59%</td>
+<td>1.99%</td>
+<td>0.69</td>
+<td>12.95</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>elevated</td>
+<td>1</td>
+<td>0.22%</td>
+<td>1.18%</td>
+<td>fhs</td>
+<td>0.26%</td>
+<td>0.27%</td>
+<td>2.50%</td>
+<td>1.11%</td>
+<td>1.74%</td>
+<td>0.66</td>
+<td>7.06</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>elevated</td>
+<td>2</td>
+<td>0.36%</td>
+<td>1.27%</td>
+<td>fhs</td>
+<td>0.36%</td>
+<td>0.38%</td>
+<td>2.12%</td>
+<td>1.50%</td>
+<td>1.85%</td>
+<td>0.66</td>
+<td>12.38</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>crisis</td>
+<td>1</td>
+<td>0.22%</td>
+<td>1.18%</td>
+<td>fhs</td>
+<td>0.24%</td>
+<td>0.24%</td>
+<td>2.51%</td>
+<td>0.92%</td>
+<td>1.19%</td>
+<td>0.55</td>
+<td>6.59</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>crisis</td>
+<td>2</td>
+<td>0.35%</td>
+<td>1.33%</td>
+<td>fhs</td>
+<td>0.36%</td>
+<td>0.38%</td>
+<td>2.18%</td>
+<td>1.38%</td>
+<td>1.65%</td>
+<td>0.61</td>
+<td>11.68</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>extreme</td>
+<td>1</td>
+<td>0.23%</td>
+<td>1.17%</td>
+<td>fhs</td>
+<td>0.23%</td>
+<td>0.23%</td>
+<td>2.69%</td>
+<td>0.71%</td>
+<td>0.43%</td>
+<td>0.41</td>
+<td>5.47</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>extreme</td>
+<td>2</td>
+<td>0.32%</td>
+<td>1.27%</td>
+<td>fhs</td>
+<td>0.33%</td>
+<td>0.36%</td>
+<td>2.15%</td>
+<td>1.21%</td>
+<td>1.34%</td>
+<td>0.55</td>
+<td>10.68</td>
+</tr>
+<tr>
+<td>CPPI</td>
+<td>calm</td>
+<td>1</td>
+<td>0.30%</td>
+<td>1.24%</td>
+<td>fhs</td>
+<td>0.29%</td>
+<td>0.29%</td>
+<td>1.21%</td>
+<td>1.34%</td>
+<td>2.04%</td>
+<td>0.67</td>
+<td>5.28</td>
+</tr>
+<tr>
+<td>CPPI</td>
+<td>calm</td>
+<td>2</td>
+<td>0.37%</td>
+<td>1.24%</td>
+<td>fhs</td>
+<td>0.35%</td>
+<td>0.35%</td>
+<td>1.10%</td>
+<td>1.40%</td>
+<td>1.73%</td>
+<td>0.59</td>
+<td>8.92</td>
+</tr>
+<tr>
+<td>CPPI</td>
+<td>normal</td>
+<td>1</td>
+<td>0.30%</td>
+<td>1.24%</td>
+<td>fhs</td>
+<td>0.29%</td>
+<td>0.28%</td>
+<td>1.20%</td>
+<td>1.28%</td>
+<td>1.93%</td>
+<td>0.64</td>
+<td>5.34</td>
+</tr>
+<tr>
+<td>CPPI</td>
+<td>normal</td>
+<td>2</td>
+<td>0.35%</td>
+<td>1.19%</td>
+<td>dgp_garch_t</td>
+<td>0.33%</td>
+<td>0.33%</td>
+<td>1.08%</td>
+<td>1.39%</td>
+<td>1.70%</td>
+<td>0.59</td>
+<td>8.88</td>
+</tr>
+<tr>
+<td>CPPI</td>
+<td>elevated</td>
+<td>1</td>
+<td>0.25%</td>
+<td>1.14%</td>
+<td>dgp_garch_t</td>
+<td>0.24%</td>
+<td>0.23%</td>
+<td>1.01%</td>
+<td>1.11%</td>
+<td>1.50%</td>
+<td>0.55</td>
+<td>5.05</td>
+</tr>
+<tr>
+<td>CPPI</td>
+<td>elevated</td>
+<td>2</td>
+<td>0.31%</td>
+<td>1.24%</td>
+<td>dgp_garch_t</td>
+<td>0.31%</td>
+<td>0.31%</td>
+<td>1.03%</td>
+<td>1.27%</td>
+<td>1.60%</td>
+<td>0.56</td>
+<td>8.78</td>
+</tr>
+<tr>
+<td>CPPI</td>
+<td>crisis</td>
+<td>1</td>
+<td>0.17%</td>
+<td>1.24%</td>
+<td>dgp_garch_t</td>
+<td>0.16%</td>
+<td>0.16%</td>
+<td>0.78%</td>
+<td>0.71%</td>
+<td>0.79%</td>
+<td>0.38</td>
+<td>3.64</td>
+</tr>
+<tr>
+<td>CPPI</td>
+<td>crisis</td>
+<td>2</td>
+<td>0.25%</td>
+<td>1.22%</td>
+<td>dgp_garch_t</td>
+<td>0.26%</td>
+<td>0.26%</td>
+<td>0.89%</td>
+<td>1.10%</td>
+<td>1.33%</td>
+<td>0.50</td>
+<td>8.14</td>
+</tr>
+<tr>
+<td>CPPI</td>
+<td>extreme</td>
+<td>1</td>
+<td>0.19%</td>
+<td>1.09%</td>
+<td>dgp_garch_t</td>
+<td>0.19%</td>
+<td>0.20%</td>
+<td>0.83%</td>
+<td>0.18%</td>
+<td>-0.24%</td>
+<td>0.21</td>
+<td>2.07</td>
+</tr>
+<tr>
+<td>CPPI</td>
+<td>extreme</td>
+<td>2</td>
+<td>0.26%</td>
+<td>1.25%</td>
+<td>dgp_garch_t</td>
+<td>0.26%</td>
+<td>0.26%</td>
+<td>0.70%</td>
+<td>0.76%</td>
+<td>0.75%</td>
+<td>0.36</td>
+<td>6.07</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>calm</td>
+<td>1</td>
+<td>0.22%</td>
+<td>0.80%</td>
+<td>fhs</td>
+<td>0.26%</td>
+<td>0.27%</td>
+<td>1.08%</td>
+<td>1.16%</td>
+<td>2.08%</td>
+<td>0.65</td>
+<td>6.00</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>calm</td>
+<td>2</td>
+<td>0.32%</td>
+<td>0.85%</td>
+<td>fhs</td>
+<td>0.32%</td>
+<td>0.35%</td>
+<td>0.95%</td>
+<td>1.23%</td>
+<td>1.72%</td>
+<td>0.55</td>
+<td>9.61</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>normal</td>
+<td>1</td>
+<td>0.22%</td>
+<td>0.80%</td>
+<td>fhs</td>
+<td>0.26%</td>
+<td>0.26%</td>
+<td>1.09%</td>
+<td>1.12%</td>
+<td>1.97%</td>
+<td>0.63</td>
+<td>5.97</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>normal</td>
+<td>2</td>
+<td>0.32%</td>
+<td>0.85%</td>
+<td>fhs</td>
+<td>0.32%</td>
+<td>0.34%</td>
+<td>0.94%</td>
+<td>1.21%</td>
+<td>1.70%</td>
+<td>0.55</td>
+<td>9.44</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>elevated</td>
+<td>1</td>
+<td>0.21%</td>
+<td>0.55%</td>
+<td>fhs</td>
+<td>0.22%</td>
+<td>0.23%</td>
+<td>0.27%</td>
+<td>0.40%</td>
+<td>0.98%</td>
+<td>0.28</td>
+<td>1.02</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>elevated</td>
+<td>2</td>
+<td>0.71%</td>
+<td>1.47%</td>
+<td>fhs</td>
+<td>0.88%</td>
+<td>1.06%</td>
+<td>0.40%</td>
+<td>1.00%</td>
+<td>0.93%</td>
+<td>0.26</td>
+<td>2.19</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>crisis</td>
+<td>1</td>
+<td>0.71%</td>
+<td>1.26%</td>
+<td>persistent</td>
+<td>0.75%</td>
+<td>0.77%</td>
+<td>0.27%</td>
+<td>0.80%</td>
+<td>0.26%</td>
+<td>0.08</td>
+<td>0.18</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>crisis</td>
+<td>2</td>
+<td>0.43%</td>
+<td>0.78%</td>
+<td>fhs</td>
+<td>0.49%</td>
+<td>0.55%</td>
+<td>0.18%</td>
+<td>0.53%</td>
+<td>0.28%</td>
+<td>0.08</td>
+<td>0.29</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>extreme</td>
+<td>1</td>
+<td>0.00%</td>
+<td>0.00%</td>
+<td>base</td>
+<td>0.00%</td>
+<td>0.00%</td>
+<td>0.00%</td>
+<td>0.00%</td>
+<td>0.05%</td>
+<td>0.01</td>
+<td>0.06</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>extreme</td>
+<td>2</td>
+<td>0.04%</td>
+<td>0.05%</td>
+<td>persistent</td>
+<td>0.04%</td>
+<td>0.04%</td>
+<td>0.03%</td>
+<td>0.03%</td>
+<td>0.05%</td>
+<td>0.01</td>
+<td>0.08</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>calm</td>
+<td>1</td>
+<td>12.87%</td>
+<td>15.55%</td>
+<td>dgp_garch_t</td>
+<td>15.90%</td>
+<td>19.76%</td>
+<td>8.81%</td>
+<td>13.58%</td>
+<td>2.10%</td>
+<td>0.84</td>
+<td>0.19</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>calm</td>
+<td>2</td>
+<td>12.91%</td>
+<td>17.05%</td>
+<td>dgp_garch_t</td>
+<td>16.91%</td>
+<td>22.24%</td>
+<td>8.63%</td>
+<td>14.02%</td>
+<td>1.94%</td>
+<td>0.84</td>
+<td>0.39</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>normal</td>
+<td>1</td>
+<td>14.02%</td>
+<td>17.64%</td>
+<td>dgp_garch_t</td>
+<td>17.11%</td>
+<td>20.88%</td>
+<td>9.69%</td>
+<td>14.72%</td>
+<td>1.89%</td>
+<td>0.84</td>
+<td>0.20</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>normal</td>
+<td>2</td>
+<td>13.49%</td>
+<td>18.05%</td>
+<td>dgp_garch_t</td>
+<td>17.59%</td>
+<td>22.84%</td>
+<td>9.10%</td>
+<td>14.66%</td>
+<td>1.83%</td>
+<td>0.84</td>
+<td>0.40</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>elevated</td>
+<td>1</td>
+<td>18.75%</td>
+<td>24.44%</td>
+<td>dgp_garch_t</td>
+<td>21.86%</td>
+<td>25.36%</td>
+<td>13.91%</td>
+<td>19.19%</td>
+<td>0.70%</td>
+<td>0.84</td>
+<td>0.25</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>elevated</td>
+<td>2</td>
+<td>16.32%</td>
+<td>22.43%</td>
+<td>dgp_garch_t</td>
+<td>20.55%</td>
+<td>25.52%</td>
+<td>11.31%</td>
+<td>17.35%</td>
+<td>1.20%</td>
+<td>0.84</td>
+<td>0.45</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>crisis</td>
+<td>1</td>
+<td>28.00%</td>
+<td>36.16%</td>
+<td>dgp_garch_t</td>
+<td>30.55%</td>
+<td>33.34%</td>
+<td>22.90%</td>
+<td>28.24%</td>
+<td>-4.15%</td>
+<td>0.84</td>
+<td>0.37</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>crisis</td>
+<td>2</td>
+<td>23.46%</td>
+<td>32.01%</td>
+<td>dgp_garch_t</td>
+<td>27.31%</td>
+<td>31.78%</td>
+<td>17.59%</td>
+<td>24.18%</td>
+<td>-1.35%</td>
+<td>0.84</td>
+<td>0.58</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>extreme</td>
+<td>1</td>
+<td>43.04%</td>
+<td>52.46%</td>
+<td>dgp_garch_t</td>
+<td>44.64%</td>
+<td>46.30%</td>
+<td>39.15%</td>
+<td>42.94%</td>
+<td>-23.93%</td>
+<td>0.84</td>
+<td>0.70</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>extreme</td>
+<td>2</td>
+<td>38.73%</td>
+<td>48.78%</td>
+<td>dgp_garch_t</td>
+<td>41.54%</td>
+<td>44.20%</td>
+<td>33.17%</td>
+<td>38.82%</td>
+<td>-12.38%</td>
+<td>0.84</td>
+<td>0.92</td>
+</tr>
+</tbody>
+</table>
+<p class='src'>Source: scripts/07_report_numbers.py → results/report/tables/us_mkt_all_cells.csv (from results/mc, results_dp/mc, results_dp_mu/mc summary.parquet)</p>
+
+<p><strong>B.2 Industries: DP vs comparators, CE − cash difference (bp/yr).</strong></p>
+<table>
+<thead>
+<tr>
+<th>asset</th>
+<th>dp_minus_cg_min</th>
+<th>dp_minus_cg_max</th>
+<th>dp_minus_ob_min</th>
+<th>dp_minus_ob_max</th>
+<th>n_dp_above_cg</th>
+<th>n</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ind_nodur</td>
+<td>+17</td>
+<td>+85</td>
+<td>+43</td>
+<td>+154</td>
+<td>10</td>
+<td>10</td>
+</tr>
+<tr>
+<td>ind_durbl</td>
+<td>+36</td>
+<td>+219</td>
+<td>+21</td>
+<td>+79</td>
+<td>10</td>
+<td>10</td>
+</tr>
+<tr>
+<td>ind_manuf</td>
+<td>+16</td>
+<td>+90</td>
+<td>+32</td>
+<td>+144</td>
+<td>10</td>
+<td>10</td>
+</tr>
+<tr>
+<td>ind_enrgy</td>
+<td>+33</td>
+<td>+230</td>
+<td>+17</td>
+<td>+73</td>
+<td>10</td>
+<td>10</td>
+</tr>
+<tr>
+<td>ind_hitec</td>
+<td>+25</td>
+<td>+130</td>
+<td>+37</td>
+<td>+128</td>
+<td>10</td>
+<td>10</td>
+</tr>
+<tr>
+<td>ind_telcm</td>
+<td>+24</td>
+<td>+109</td>
+<td>+15</td>
+<td>+57</td>
+<td>10</td>
+<td>10</td>
+</tr>
+<tr>
+<td>ind_shops</td>
+<td>+22</td>
+<td>+87</td>
+<td>+33</td>
+<td>+186</td>
+<td>10</td>
+<td>10</td>
+</tr>
+<tr>
+<td>ind_hlth</td>
+<td>+20</td>
+<td>+78</td>
+<td>+36</td>
+<td>+166</td>
+<td>10</td>
+<td>10</td>
+</tr>
+<tr>
+<td>ind_utils</td>
+<td>+18</td>
+<td>+161</td>
+<td>+25</td>
+<td>+114</td>
+<td>10</td>
+<td>10</td>
+</tr>
+<tr>
+<td>ind_other</td>
+<td>+18</td>
+<td>+80</td>
+<td>+26</td>
+<td>+123</td>
+<td>10</td>
+<td>10</td>
+</tr>
+</tbody>
+</table>
+<p class='src'>Source: scripts/07_report_numbers.py → results/report/tables/industries_dp_vs_comparators.csv (from results/mc, results_dp_mu/mc, results_ind_extra/mc)</p>
+
+<p><strong>B.3 PIT test, us_mkt, u &lt; 2% (base model).</strong></p>
+<table>
+<thead>
+<tr>
+<th>group_type</th>
+<th>group</th>
+<th>H</th>
+<th>n_starts</th>
+<th>n_eff</th>
+<th>count</th>
+<th>freq</th>
+<th>ci_lo</th>
+<th>ci_hi</th>
+<th>verdict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>overall</td>
+<td>all</td>
+<td>252</td>
+<td>363</td>
+<td>91</td>
+<td>5</td>
+<td>1.4%</td>
+<td>0.3%</td>
+<td>6.4%</td>
+<td>consistent</td>
+</tr>
+<tr>
+<td>overall</td>
+<td>all</td>
+<td>504</td>
+<td>359</td>
+<td>45</td>
+<td>7</td>
+<td>1.9%</td>
+<td>0.3%</td>
+<td>11.2%</td>
+<td>consistent</td>
+</tr>
+<tr>
+<td>bucket</td>
+<td>calm</td>
+<td>252</td>
+<td>120</td>
+<td>30</td>
+<td>1</td>
+<td>0.8%</td>
+<td>0.0%</td>
+<td>12.8%</td>
+<td>consistent</td>
+</tr>
+<tr>
+<td>bucket</td>
+<td>calm</td>
+<td>504</td>
+<td>120</td>
+<td>15</td>
+<td>3</td>
+<td>2.5%</td>
+<td>0.2%</td>
+<td>24.2%</td>
+<td>consistent</td>
+</tr>
+<tr>
+<td>bucket</td>
+<td>normal</td>
+<td>252</td>
+<td>156</td>
+<td>39</td>
+<td>0</td>
+<td>0.0%</td>
+<td>0.0%</td>
+<td>9.0%</td>
+<td>consistent</td>
+</tr>
+<tr>
+<td>bucket</td>
+<td>normal</td>
+<td>504</td>
+<td>154</td>
+<td>19</td>
+<td>2</td>
+<td>1.3%</td>
+<td>0.1%</td>
+<td>18.7%</td>
+<td>consistent</td>
+</tr>
+<tr>
+<td>bucket</td>
+<td>elevated</td>
+<td>252</td>
+<td>72</td>
+<td>18</td>
+<td>4</td>
+<td>5.6%</td>
+<td>1.0%</td>
+<td>25.8%</td>
+<td>consistent</td>
+</tr>
+<tr>
+<td>bucket</td>
+<td>elevated</td>
+<td>504</td>
+<td>70</td>
+<td>9</td>
+<td>2</td>
+<td>2.9%</td>
+<td>0.2%</td>
+<td>34.3%</td>
+<td>consistent</td>
+</tr>
+<tr>
+<td>bucket</td>
+<td>crisis</td>
+<td>252</td>
+<td>15</td>
+<td>4</td>
+<td>0</td>
+<td>0.0%</td>
+<td>0.0%</td>
+<td>50.6%</td>
+<td>inconclusive</td>
+</tr>
+<tr>
+<td>bucket</td>
+<td>crisis</td>
+<td>504</td>
+<td>15</td>
+<td>2</td>
+<td>0</td>
+<td>0.0%</td>
+<td>0.0%</td>
+<td>67.2%</td>
+<td>inconclusive</td>
+</tr>
+<tr>
+<td>bucket_group</td>
+<td>high</td>
+<td>252</td>
+<td>87</td>
+<td>22</td>
+<td>4</td>
+<td>4.6%</td>
+<td>0.8%</td>
+<td>22.0%</td>
+<td>consistent</td>
+</tr>
+<tr>
+<td>bucket_group</td>
+<td>high</td>
+<td>504</td>
+<td>85</td>
+<td>11</td>
+<td>2</td>
+<td>2.4%</td>
+<td>0.1%</td>
+<td>29.9%</td>
+<td>consistent</td>
+</tr>
+<tr>
+<td>era</td>
+<td>pre-1952</td>
+<td>252</td>
+<td>68</td>
+<td>17</td>
+<td>0</td>
+<td>0.0%</td>
+<td>0.0%</td>
+<td>18.4%</td>
+<td>consistent</td>
+</tr>
+<tr>
+<td>era</td>
+<td>pre-1952</td>
+<td>504</td>
+<td>68</td>
+<td>8</td>
+<td>0</td>
+<td>0.0%</td>
+<td>0.0%</td>
+<td>31.1%</td>
+<td>consistent</td>
+</tr>
+<tr>
+<td>era</td>
+<td>1952-1999</td>
+<td>252</td>
+<td>192</td>
+<td>48</td>
+<td>2</td>
+<td>1.0%</td>
+<td>0.1%</td>
+<td>9.2%</td>
+<td>consistent</td>
+</tr>
+<tr>
+<td>era</td>
+<td>1952-1999</td>
+<td>504</td>
+<td>192</td>
+<td>24</td>
+<td>2</td>
+<td>1.0%</td>
+<td>0.1%</td>
+<td>15.5%</td>
+<td>consistent</td>
+</tr>
+<tr>
+<td>era</td>
+<td>2000-</td>
+<td>252</td>
+<td>103</td>
+<td>26</td>
+<td>3</td>
+<td>2.9%</td>
+<td>0.4%</td>
+<td>17.6%</td>
+<td>consistent</td>
+</tr>
+<tr>
+<td>era</td>
+<td>2000-</td>
+<td>504</td>
+<td>99</td>
+<td>12</td>
+<td>5</td>
+<td>5.1%</td>
+<td>0.6%</td>
+<td>30.8%</td>
+<td>consistent</td>
+</tr>
+</tbody>
+</table>
+<p class='src'>Source: scripts/07_report_numbers.py → results/report/tables/pit_us_mkt.csv (from reports/model/us_mkt/model_report.json → pit_tables (base GJR-t, u < 2%))</p>
+
+<p><strong>B.4 Parameter stability, us_mkt.</strong></p>
+<table>
+<thead>
+<tr>
+<th>sample</th>
+<th>start</th>
+<th>end</th>
+<th>nobs</th>
+<th>nu</th>
+<th>persistence</th>
+<th>half_life_days</th>
+<th>uncond_vol_ann</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>estimation window (base)</td>
+<td>1926-07-01</td>
+<td>2026-09-30</td>
+<td>26338</td>
+<td>5.89</td>
+<td>0.9881</td>
+<td>58</td>
+<td>15.3%</td>
+</tr>
+<tr>
+<td>pre-1963</td>
+<td>1926-07-01</td>
+<td>1962-12-31</td>
+<td>10295</td>
+<td>4.61</td>
+<td>0.9879</td>
+<td>57</td>
+<td>17.1%</td>
+</tr>
+<tr>
+<td>1963-1999</td>
+<td>1963-01-02</td>
+<td>1999-12-31</td>
+<td>9317</td>
+<td>7.23</td>
+<td>0.9922</td>
+<td>89</td>
+<td>13.3%</td>
+</tr>
+<tr>
+<td>2000-end</td>
+<td>2000-01-03</td>
+<td>2026-09-30</td>
+<td>6726</td>
+<td>7.66</td>
+<td>0.9813</td>
+<td>37</td>
+<td>16.5%</td>
+</tr>
+<tr>
+<td>from 1952-07-01</td>
+<td>1952-07-01</td>
+<td>2026-09-30</td>
+<td>18685</td>
+<td>7.01</td>
+<td>0.9860</td>
+<td>49</td>
+<td>13.7%</td>
+</tr>
+<tr>
+<td>from 1963-07-01</td>
+<td>1963-07-01</td>
+<td>2026-09-30</td>
+<td>15918</td>
+<td>7.17</td>
+<td>0.9888</td>
+<td>61</td>
+<td>14.9%</td>
+</tr>
+<tr>
+<td>from 1990-01-01</td>
+<td>1990-01-02</td>
+<td>2026-09-30</td>
+<td>9254</td>
+<td>7.00</td>
+<td>0.9822</td>
+<td>39</td>
+<td>15.3%</td>
+</tr>
+</tbody>
+</table>
+<p class='src'>Source: scripts/07_report_numbers.py → results/report/tables/param_stability_us_mkt.csv (from reports/model/us_mkt/model_report.json → subsamples)</p>
+
+<p><strong>B.5 Historical backtest by decade, us_mkt.</strong></p>
+<table>
+<thead>
+<tr>
+<th>strategy</th>
+<th>group</th>
+<th>n_eff</th>
+<th>breach</th>
+<th>breach_hi</th>
+<th>T</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>1930s</td>
+<td>5</td>
+<td>0.0%</td>
+<td>43.4%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>1940s</td>
+<td>10</td>
+<td>0.0%</td>
+<td>27.8%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>1950s</td>
+<td>10</td>
+<td>0.0%</td>
+<td>27.8%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>1960s</td>
+<td>10</td>
+<td>0.0%</td>
+<td>27.8%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>1970s</td>
+<td>10</td>
+<td>0.8%</td>
+<td>28.9%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>1980s</td>
+<td>10</td>
+<td>4.2%</td>
+<td>33.4%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>1990s</td>
+<td>10</td>
+<td>0.0%</td>
+<td>27.8%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>2000s</td>
+<td>10</td>
+<td>0.0%</td>
+<td>27.8%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>2010s</td>
+<td>10</td>
+<td>0.0%</td>
+<td>27.8%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>2020s</td>
+<td>6</td>
+<td>0.0%</td>
+<td>40.1%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>1930s</td>
+<td>2</td>
+<td>0.0%</td>
+<td>60.6%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>1940s</td>
+<td>5</td>
+<td>0.8%</td>
+<td>44.4%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>1950s</td>
+<td>5</td>
+<td>0.0%</td>
+<td>43.4%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>1960s</td>
+<td>5</td>
+<td>0.0%</td>
+<td>43.4%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>1970s</td>
+<td>5</td>
+<td>1.7%</td>
+<td>45.3%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>1980s</td>
+<td>5</td>
+<td>5.0%</td>
+<td>48.8%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>1990s</td>
+<td>5</td>
+<td>0.0%</td>
+<td>43.4%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>2000s</td>
+<td>5</td>
+<td>0.0%</td>
+<td>43.4%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>2010s</td>
+<td>5</td>
+<td>0.8%</td>
+<td>44.4%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Gap-aware CPPI</td>
+<td>2020s</td>
+<td>2</td>
+<td>0.0%</td>
+<td>61.8%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>1930s</td>
+<td>5</td>
+<td>0.0%</td>
+<td>43.4%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>1940s</td>
+<td>10</td>
+<td>0.0%</td>
+<td>27.8%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>1950s</td>
+<td>10</td>
+<td>0.0%</td>
+<td>27.8%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>1960s</td>
+<td>10</td>
+<td>10.0%</td>
+<td>40.4%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>1970s</td>
+<td>10</td>
+<td>15.0%</td>
+<td>45.9%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>1980s</td>
+<td>10</td>
+<td>10.8%</td>
+<td>41.4%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>1990s</td>
+<td>10</td>
+<td>0.0%</td>
+<td>27.8%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>2000s</td>
+<td>10</td>
+<td>34.2%</td>
+<td>63.9%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>2010s</td>
+<td>10</td>
+<td>0.8%</td>
+<td>28.9%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>2020s</td>
+<td>6</td>
+<td>14.5%</td>
+<td>55.1%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>1930s</td>
+<td>2</td>
+<td>0.0%</td>
+<td>60.6%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>1940s</td>
+<td>5</td>
+<td>0.0%</td>
+<td>43.4%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>1950s</td>
+<td>5</td>
+<td>0.0%</td>
+<td>43.4%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>1960s</td>
+<td>5</td>
+<td>5.8%</td>
+<td>49.7%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>1970s</td>
+<td>5</td>
+<td>14.2%</td>
+<td>57.5%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>1980s</td>
+<td>5</td>
+<td>0.0%</td>
+<td>43.4%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>1990s</td>
+<td>5</td>
+<td>5.0%</td>
+<td>48.8%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>2000s</td>
+<td>5</td>
+<td>33.3%</td>
+<td>72.5%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>2010s</td>
+<td>5</td>
+<td>0.0%</td>
+<td>43.4%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>No-floor Merton</td>
+<td>2020s</td>
+<td>2</td>
+<td>1.8%</td>
+<td>63.1%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>1930s</td>
+<td>5</td>
+<td>0.0%</td>
+<td>43.4%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>1940s</td>
+<td>10</td>
+<td>0.0%</td>
+<td>27.8%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>1950s</td>
+<td>10</td>
+<td>0.0%</td>
+<td>27.8%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>1960s</td>
+<td>10</td>
+<td>0.0%</td>
+<td>27.8%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>1970s</td>
+<td>10</td>
+<td>0.0%</td>
+<td>27.8%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>1980s</td>
+<td>10</td>
+<td>2.5%</td>
+<td>31.2%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>1990s</td>
+<td>10</td>
+<td>0.0%</td>
+<td>27.8%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>2000s</td>
+<td>10</td>
+<td>0.0%</td>
+<td>27.8%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>2010s</td>
+<td>10</td>
+<td>0.0%</td>
+<td>27.8%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>2020s</td>
+<td>6</td>
+<td>0.0%</td>
+<td>40.1%</td>
+<td>1</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>1930s</td>
+<td>2</td>
+<td>0.0%</td>
+<td>60.6%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>1940s</td>
+<td>5</td>
+<td>0.0%</td>
+<td>43.4%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>1950s</td>
+<td>5</td>
+<td>0.0%</td>
+<td>43.4%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>1960s</td>
+<td>5</td>
+<td>0.0%</td>
+<td>43.4%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>1970s</td>
+<td>5</td>
+<td>0.0%</td>
+<td>43.4%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>1980s</td>
+<td>5</td>
+<td>0.0%</td>
+<td>43.4%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>1990s</td>
+<td>5</td>
+<td>0.0%</td>
+<td>43.4%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>2000s</td>
+<td>5</td>
+<td>0.0%</td>
+<td>43.4%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>2010s</td>
+<td>5</td>
+<td>0.0%</td>
+<td>43.4%</td>
+<td>2</td>
+</tr>
+<tr>
+<td>OBPI</td>
+<td>2020s</td>
+<td>2</td>
+<td>0.0%</td>
+<td>61.8%</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+<p class='src'>Source: scripts/07_report_numbers.py → results/report/tables/backtest_decade_us_mkt.csv (from results/backtest/summary.parquet)</p>
+
+<div class="pb"></div>
+
+<h2 id="appendix-c-ai-use-statement">Appendix C: AI-use statement</h2>
+<div class="placeholder">
+<p><strong>[TEAM TO COMPLETE — placeholder skeleton]</strong></p>
+<p><strong>Tools used and for what.</strong> [e.g. Claude Code for code, pipeline runs and drafting; which members used which tools.]</p>
+<p><strong>How material outputs were verified.</strong> [unit tests (pytest suite); data validation gates (SPEC 01 checks); PIT
+calibration test; DP validation V1–V6; paired seeds between strategies and independent tune/evaluation seeds;
+reproducing rows (e.g. the comparator pairing check, the DP lookup reproduction); byte-identical numbers.json from a
+fresh clone.]</p>
+<p><strong>Material AI errors found, and decisions overruled</strong> (from DECISIONS.md; expand each with date and what changed):</p>
+<ul>
+<li>The pre-1952 annualisation claim was reversed: N = 252 <em>understates</em> calendar-year volatility before 1952; it does not overstate it.</li>
+<li>The proposed 2nd-percentile floor discount would have been looser than the floor in use and roughly doubled breaches; rejected.</li>
+<li>Hand-set per-asset start dates (1984 for telecom) were replaced by an automatic fallback-window rule.</li>
+<li>OBPI tracking drift and unbounded simulated variance were found at a quick-run gate; fixed by daily re-anchoring and a variance cap.</li>
+<li>Last-candidate tuning bias, replaced by a logistic crossing.</li>
+<li>The 5k-path worst-case breach above target was Monte Carlo noise; it disappeared at full size.</li>
+<li>The V6 optimality test was reworded to a breach-matched (frontier) comparison after the literal version had no comparable cells.</li>
+<li>[others the team identifies]</li>
+</ul>
+<p><strong>AI lab notebook entries:</strong> attached separately.</p>
+</div></body></html>

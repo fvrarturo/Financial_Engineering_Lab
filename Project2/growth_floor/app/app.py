@@ -32,6 +32,7 @@ sys.path.insert(0, str(ROOT / "src"))
 import dash  # noqa: E402
 import dash_bootstrap_components as dbc  # noqa: E402
 from dash import Input, Output, State, dash_table, dcc, html  # noqa: E402
+from gf.metrics import add_ce_xcash, ce_xcash_se  # noqa: E402
 
 FLOOR, TARGET = 95e6, 0.02
 STRATEGY_KEYS = ["cash", "merton_const", "merton_vol", "cppi", "cppi_vol", "obpi_merton", "obpi_merton_untuned",
@@ -99,6 +100,14 @@ class Results:
                 if self.manifest is None:
                     mp2 = Path(er) / "run_manifest.json"
                     self.manifest = json.loads(mp2.read_text()) if mp2.exists() else None
+
+        # CE convention: excess over the cash return (%/yr), cash strategy in the same cell (gf.metrics.add_ce_xcash)
+        if self.summary is not None:
+            self.summary = add_ce_xcash(self.summary)
+        if self.frontier is not None and self.summary is not None:   # frontier: same eval seed, cash from summary
+            self.frontier = add_ce_xcash(self.frontier, self.summary, ["asset", "state", "T_days", "scenario"])
+        if self.backtest is not None:
+            self.backtest = add_ce_xcash(self.backtest, keys=["asset", "T_days", "group_type", "group"])
 
     def _pq(self, rel):
         p = self.root / rel
@@ -189,7 +198,8 @@ def scorecard(run, asset, strats, tune_mode, state, T_days, scenario):
                      "worst-case breach %": (f"{100 * w.breach.max():.2f} ({w.loc[w.breach.idxmax(), 'scenario']}, "
                                              f"{len(w)} scen.)") if len(w) else "",
                      "gap share": "" if pd.isna(r.breach_gap_share) else f"{r.breach_gap_share:.0%}",
-                     "CE $M": f"{r.ce / 1e6:.2f} ± {r.ce_se / 1e6:.2f}", "CE ann %": f"{100 * r.ce_ann:.2f}",
+                     "CE − cash %/yr": f"{100 * r.ce_xcash:.2f} ± "
+                                       f"{100 * ce_xcash_se(r.ce, r.ce_se, r.ce_ann, r.T_days):.2f}",
                      "mean W $M": f"{r['mean'] / 1e6:.2f}", "median W $M": f"{r['median'] / 1e6:.2f}",
                      "q1% $M": f"{r['q1%'] / 1e6:.2f}", "q5% $M": f"{r['q5%'] / 1e6:.2f}",
                      "ES|breach $M": f"{r.es_given_breach / 1e6:.2f}", "avg φ": f"{r.phi_avg:.2f}",
@@ -216,23 +226,23 @@ def heatmap_fig(run, asset, strategy, tune_mode, r0, scenario, worst):
     wset = (res.manifest or {}).get("config_snapshot", {}).get("mc", {}).get("worst_case_set", [])
     if worst:
         d = d[d.scenario.isin(wset)]
-        agg = d.groupby(["sigma0", "T_days"]).agg(breach=("breach", "max"), ce_ann=("ce_ann", "min"),
+        agg = d.groupby(["sigma0", "T_days"]).agg(breach=("breach", "max"), ce_xcash=("ce_xcash", "min"),
                                                   n=("scenario", "nunique")).reset_index()
         title = f"Worst case over {', '.join(wset)} (scenarios available per cell shown)"
     else:
         agg = d[d.scenario == scenario].groupby(["sigma0", "T_days"]).agg(
-            breach=("breach", "mean"), ce_ann=("ce_ann", "mean"), n=("scenario", "nunique")).reset_index()
+            breach=("breach", "mean"), ce_xcash=("ce_xcash", "mean"), n=("scenario", "nunique")).reset_index()
         title = f"Scenario {scenario}"
     if agg.empty:
         return msg_fig("No cells for this selection (dense grid exists only for base and dgp_garch_t).")
     sig = sorted(agg.sigma0.unique())
     Ts = sorted(agg.T_days.unique())
     Z = agg.pivot(index="T_days", columns="sigma0", values="breach").reindex(index=Ts, columns=sig).to_numpy() * 100
-    C = agg.pivot(index="T_days", columns="sigma0", values="ce_ann").reindex(index=Ts, columns=sig).to_numpy() * 100
+    C = agg.pivot(index="T_days", columns="sigma0", values="ce_xcash").reindex(index=Ts, columns=sig).to_numpy() * 100
     Nn = agg.pivot(index="T_days", columns="sigma0", values="n").reindex(index=Ts, columns=sig).to_numpy()
     xs = [f"{s:.0%}" for s in sig]
     ys = [f"{t / 252:.2f}y" for t in Ts]
-    fig = make_subplots(rows=1, cols=2, subplot_titles=["Breach probability (%)", "CE (annualised %)"],
+    fig = make_subplots(rows=1, cols=2, subplot_titles=["Breach probability (%)", "CE − cash (%/yr)"],
                         horizontal_spacing=0.12)
     txt = [[f"{z:.2f}" + (f" ({int(n)})" if worst else "") if np.isfinite(z) else "" for z, n in zip(rz, rn)]
            for rz, rn in zip(Z, Nn)]
@@ -354,20 +364,20 @@ def frontier_fig(run, asset, strats, tune_mode, state, T_days):
     for (s, v), g in f.groupby(["strategy", "variant"]):
         g = g.sort_values("breach")
         nm = LABELS.get(s, s) + (f" [{v}]" if v else "")
-        fig.add_trace(go.Scatter(x=g.breach * 100, y=g.ce_ann * 100, mode="lines+markers", name=nm,
+        fig.add_trace(go.Scatter(x=g.breach * 100, y=g.ce_xcash * 100, mode="lines+markers", name=nm,
                                  line={"color": COLORS.get(s), "dash": "dot" if v == "sigma0_fixed" else "solid"},
                                  text=[f"{g.knob_name.iloc[0]}={k:.3g}" for k in g.knob],
-                                 hovertemplate="%{text}<br>breach %{x:.2f}%<br>CE %{y:.2f}%"))
+                                 hovertemplate="%{text}<br>breach %{x:.2f}%<br>CE − cash %{y:.2f}%/yr"))
     d = res.summary
     d = d[(d.asset == asset) & (d.state == state) & (d.T_days == T_days) & (d.scenario == "base")]
     d = strat_rows(d, strats or [], tune_mode)
     for _, r in d.iterrows():
-        fig.add_trace(go.Scatter(x=[r.breach * 100], y=[r.ce_ann * 100], mode="markers",
+        fig.add_trace(go.Scatter(x=[r.breach * 100], y=[r.ce_xcash * 100], mode="markers",
                                  marker={"symbol": "star", "size": 15, "color": COLORS.get(r.skey),
                                          "line": {"color": "black", "width": 1}},
                                  name=f"{LABELS.get(r.skey)} ({r.tune_mode}, eval seed)"))
     fig.add_vline(x=TARGET * 100, line={"dash": "dash", "color": "red"})
-    fig.update_layout(xaxis_title="breach probability (%)", yaxis_title="CE (annualised %)", height=520,
+    fig.update_layout(xaxis_title="breach probability (%)", yaxis_title="CE − cash (%/yr)", height=520,
                       template="plotly_white", title=f"Frontier: {asset} {state} T={T_days / 252:.2f}y (base)")
     fig.update_xaxes(range=[0, min(10, max(4, f.breach.quantile(0.7) * 100))])
     return fig
@@ -381,14 +391,14 @@ def robustness_fig(run, asset, strats, tune_mode, state, T_days):
     d = strat_rows(d[(d.asset == asset) & (d.state == state) & (d.T_days == T_days)], strats or [], tune_mode)
     if d.empty:
         return msg_fig("No cells for this selection.")
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, subplot_titles=["Breach (%)", "CE (annualised %)"])
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, subplot_titles=["Breach (%)", "CE − cash (%/yr)"])
     scen = sorted(d.scenario.unique(), key=lambda s: (s != "base", s))
     for s, g in d.groupby("skey"):
         g = g.set_index("scenario").reindex(scen)
         fig.add_trace(go.Bar(x=scen, y=g.breach * 100, name=LABELS.get(s), marker={"color": COLORS.get(s)},
                              error_y={"type": "data", "symmetric": False, "array": (g.breach_hi - g.breach) * 100,
                                       "arrayminus": (g.breach - g.breach_lo) * 100}), 1, 1)
-        fig.add_trace(go.Bar(x=scen, y=g.ce_ann * 100, name=LABELS.get(s), marker={"color": COLORS.get(s)},
+        fig.add_trace(go.Bar(x=scen, y=g.ce_xcash * 100, name=LABELS.get(s), marker={"color": COLORS.get(s)},
                              showlegend=False), 2, 1)
     fig.add_hline(y=2, line={"dash": "dash", "color": "red"}, row=1, col=1)
     fig.update_layout(barmode="group", height=620, template="plotly_white",
@@ -493,12 +503,13 @@ def custom_run(asset, sigma0, r0, T_days, m, z, keff, n_paths=5000, limit_s=20.0
                      P["gamma"], s0, ctx.model_info(s0["sigma0_ann"], P["gamma"], cfg["strategies"]["floor"]),
                      cfg["engine"])
     rows = []
-    for res in out:
-        mm = row_metrics(res, 0, P["K"], P["W0"], r0, P["gamma"], {**cfg["mc"], "bootstrap_reps": 0}, 0)
+    mms = [row_metrics(res, 0, P["K"], P["W0"], r0, P["gamma"], {**cfg["mc"], "bootstrap_reps": 0}, 0) for res in out]
+    cash_ce = mms[0]["ce_ann"]                 # strats[0] is cash: CE quoted as excess over it
+    for res, mm in zip(out, mms):
         rows.append({"strategy": LABELS.get(res["strategy"], res["strategy"]),
                      "knob": "" if np.isnan(res["knob_values"][0]) else f"{res['knob_values'][0]:.3g}",
                      "breach %": f"{100 * mm['breach']:.2f} [{100 * mm['breach_lo']:.2f}, {100 * mm['breach_hi']:.2f}]",
-                     "CE ann %": f"{100 * mm['ce_ann']:.2f}", "avg φ": f"{mm['phi_avg']:.2f}",
+                     "CE − cash %/yr": f"{100 * (mm['ce_ann'] - cash_ce):.2f}", "avg φ": f"{mm['phi_avg']:.2f}",
                      "gap share": "" if np.isnan(mm["breach_gap_share"]) else f"{mm['breach_gap_share']:.0%}"})
     return rows, f"Live run: {n_paths} paths, {time.time() - t0:.1f}s (seed 12345). Not part of the report."
 

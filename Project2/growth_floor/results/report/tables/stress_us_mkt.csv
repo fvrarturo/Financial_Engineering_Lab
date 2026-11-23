@@ -1,0 +1,13 @@
+strategy,T,worst_robust_max,mu_low_max,mu_low_argmax,mu_zero_max,mu_zero_argmax,fat_tails_max,fat_tails_argmax,jump_max,jump_argmax
+Premium-robust DP,1,0.00952,0.01198,extreme,0.01754,normal,0.03452,extreme,0.01246,normal
+Premium-robust DP,2,0.0063,0.00994,crisis,0.01652,crisis,0.01448,crisis,0.00872,crisis
+DP (base λ*),1,0.00952,0.01198,extreme,0.01778,calm,0.03452,extreme,0.01288,calm
+DP (base λ*),2,0.01124,0.01932,calm,0.03246,calm,0.01634,elevated,0.01474,calm
+Gap-aware CPPI,1,0.013,0.00278,normal,0.00308,normal,0.02688,extreme,0.01226,calm
+Gap-aware CPPI,2,0.0133,0.00396,calm,0.0043,calm,0.02176,crisis,0.01632,calm
+OBPI,1,0.0126,0.00746,crisis,0.00772,crisis,0.01088,normal,0.0116,calm
+OBPI,2,0.0147,0.00882,elevated,0.0106,elevated,0.00948,calm,0.01232,calm
+CPPI,1,0.01244,0.00294,calm,0.00288,calm,0.01206,calm,0.01338,calm
+CPPI,2,0.01254,0.00348,calm,0.00354,calm,0.01102,calm,0.01404,calm
+No-floor Merton,1,0.5246,0.44644,extreme,0.46296,extreme,0.39152,extreme,0.42944,extreme
+No-floor Merton,2,0.48782,0.41542,extreme,0.44202,extreme,0.33166,extreme,0.38816,extreme

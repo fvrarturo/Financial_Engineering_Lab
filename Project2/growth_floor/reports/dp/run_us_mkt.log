@@ -52,17 +52,17 @@
 [01:25:49]   mu_low: 648s elapsed
 [01:27:08]   mu_zero: 727s elapsed
 [01:27:15] V6 (UNPAIRED quick run): 4/4 comparable cells with DP CE >= other; pass=True
-[01:27:25] figures -> growth_floor_dp/reports/dp
-[01:27:31] tables -> growth_floor_dp/reports/dp/tables_us_mkt.md
+[01:27:25] figures -> /Users/clarysvignal/Desktop/Courses/Financial_Engineering/proj2/growth_floor_dp/reports/dp
+[01:27:31] tables -> /Users/clarysvignal/Desktop/Courses/Financial_Engineering/proj2/growth_floor_dp/reports/dp/tables_us_mkt.md
 [01:27:38] solve us_mkt_y2: 4 lam values (1 to do), y 239 x h 40 x z 60 x phi 41, tau_max 504
 === Sun 22 Nov 2026 01:29:15 EST stopped V4: y2 cache held 3 stale old-grid solves from orphaned workers; moved to old_uniform_y/orphan_y2; added grid check
 [01:29:35] solve us_mkt_y2: 4 lam values (4 to do), y 239 x h 40 x z 60 x phi 41, tau_max 504
 [02:47:05]   solves done in 4650s wall; per-solve seconds [2486, 2484, 2127, 2131]
 [02:48:32] V4 pass=True: [('normal', 252, -0.22, -0.035), ('normal', 504, 0.13, 0.03), ('crisis', 252, -0.15, -0.075), ('crisis', 504, -0.11, -0.035)]
-[02:48:37] tables -> growth_floor_dp/reports/dp/tables_us_mkt.md
+[02:48:37] tables -> /Users/clarysvignal/Desktop/Courses/Financial_Engineering/proj2/growth_floor_dp/reports/dp/tables_us_mkt.md
 US_MKT PIPELINE DONE
 [02:49:19]   MC grid v6frontier_us_mkt: 5 runs x 2 horizons x 8 lam rows at 50000 paths
 [02:54:01]   done in 282s wall (sum of task seconds 467)
 [02:54:01] V6 frontier: 32/32 comparable of 40 with DP CE >= other; pass=True
 [02:54:01] V6 (paired): 0/0 comparable cells with DP CE >= other; pass=False
-[02:54:06] tables -> growth_floor_dp/reports/dp/tables_us_mkt.md
+[02:54:06] tables -> /Users/clarysvignal/Desktop/Courses/Financial_Engineering/proj2/growth_floor_dp/reports/dp/tables_us_mkt.md

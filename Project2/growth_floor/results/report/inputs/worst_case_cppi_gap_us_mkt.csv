@@ -1,0 +1,11 @@
+asset,strategy,tune_mode,state,T_days,breach_base,ce_base,ce_ann_base,worst_scenario,breach_worst,breach_worst_lo,breach_worst_hi,ce_at_worst,ce_ann_at_worst,n_scenarios,scenarios
+us_mkt,cppi_vol,state,calm,504,0.00376,1.10508e+08,0.0512296,fhs,0.01284,0.0118899,0.0138649,1.10201e+08,0.0497683,5,"base,dgp_garch_t,fhs,param_unc,persistent"
+us_mkt,cppi_vol,state,normal,504,0.00366,1.10387e+08,0.0506536,fhs,0.01258,0.0116399,0.013595,1.1008e+08,0.0491924,5,"base,dgp_garch_t,fhs,param_unc,persistent"
+us_mkt,cppi_vol,state,elevated,504,0.00356,1.10089e+08,0.0492328,fhs,0.01274,0.0117937,0.0137611,1.09777e+08,0.0477447,5,"base,dgp_garch_t,fhs,param_unc,persistent"
+us_mkt,cppi_vol,state,crisis,504,0.00346,1.0967e+08,0.0472331,fhs,0.0133,0.0123326,0.0143422,1.09362e+08,0.0457629,5,"base,dgp_garch_t,fhs,param_unc,persistent"
+us_mkt,cppi_vol,state,extreme,504,0.00318,1.09021e+08,0.0441322,fhs,0.01268,0.011736,0.0136988,1.08761e+08,0.0428855,5,"base,dgp_garch_t,fhs,param_unc,persistent"
+us_mkt,cppi_vol,state,calm,252,0.00254,1.05252e+08,0.0525232,fhs,0.013,0.0120439,0.014031,1.05161e+08,0.0516091,5,"base,dgp_garch_t,fhs,param_unc,persistent"
+us_mkt,cppi_vol,state,normal,252,0.00258,1.05076e+08,0.0507565,fhs,0.01284,0.0118899,0.0138649,1.04988e+08,0.0498752,5,"base,dgp_garch_t,fhs,param_unc,persistent"
+us_mkt,cppi_vol,state,elevated,252,0.0022,1.04638e+08,0.0463811,fhs,0.01184,0.0109287,0.0128263,1.04575e+08,0.0457489,5,"base,dgp_garch_t,fhs,param_unc,persistent"
+us_mkt,cppi_vol,state,crisis,252,0.00222,1.04089e+08,0.0408888,fhs,0.0118,0.0108903,0.0127847,1.04045e+08,0.0404474,5,"base,dgp_garch_t,fhs,param_unc,persistent"
+us_mkt,cppi_vol,state,extreme,252,0.00232,1.03331e+08,0.03331,fhs,0.0117,0.0107943,0.0126808,1.03316e+08,0.0331565,5,"base,dgp_garch_t,fhs,param_unc,persistent"

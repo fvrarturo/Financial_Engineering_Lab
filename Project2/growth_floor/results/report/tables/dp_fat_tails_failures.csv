@@ -1,0 +1,10 @@
+asset,state,T,breach
+us_mkt,crisis,1,0.02636
+us_mkt,extreme,1,0.03452
+ind_nodur,extreme,1,0.02785
+ind_durbl,elevated,1,0.02125
+ind_durbl,crisis,1,0.02165
+ind_durbl,crisis,2,0.0247
+ind_manuf,crisis,1,0.02035
+ind_manuf,extreme,1,0.0233
+ind_other,extreme,1,0.0294

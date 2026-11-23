@@ -231,6 +231,32 @@ def run_mc_grid(cfg, asset, scenarios, horizons, n_paths, seed, policy_path, lam
     return df
 
 
+def cash_ce(cfg, asset, seed_kind: str, n_paths: int, horizons, scenario: str = "base") -> dict:
+    """{(state, T_days): ce_ann of the cash strategy} on the named states, same seed / n_paths / scenario as the
+    runs it is subtracted from (CE convention: excess over the cash return, %/yr). Cached in the policy cache."""
+    S = Setup(cfg, asset)
+    seed = cell_seed(cfg["mc"]["master_seed"], asset, seed_kind)
+    cf = S.cache / f"cash_ce_{asset}_{seed_kind}_{scenario}_{n_paths}.parquet"
+    if cf.exists():
+        df = pd.read_parquet(cf)
+    else:
+        P, mc = cfg["problem"], cfg["mc"]
+        rows = []
+        for r in S.named.itertuples():
+            s0 = {"sigma0_ann": float(r.sigma0_ann), "r0_ann": float(r.r0_ann)}
+            dgp, rate, _ = S.ctx.dgp(scenario, mc["scenarios"][scenario], n_paths)
+            info = S.ctx.model_info(s0["sigma0_ann"], P["gamma"], cfg["strategies"]["floor"])
+            strats = [make_strategy("cash", int(T)) for T in horizons]
+            mk = SimMarket(dgp, S.ctx.investor(), rate, s0, n_paths, seed)
+            out = run_engine(mk, strats, P["W0"], P["K"], P["gamma"], s0, info, cfg["engine"])
+            for T, res in zip(horizons, out):
+                m = row_metrics(res, 0, P["K"], P["W0"], s0["r0_ann"], P["gamma"], {**mc, "bootstrap_reps": 0}, 0)
+                rows.append({"state": r.state_name, "T_days": int(T), "ce_ann_cash": m["ce_ann"]})
+        df = pd.DataFrame(rows)
+        df.to_parquet(cf, index=False)
+    return {(r.state, int(r.T_days)): float(r.ce_ann_cash) for r in df.itertuples()}
+
+
 # --------------------------------------------------------------------------- calibration
 def select_lam(lams, sub: pd.DataFrame, target: float, n_paths: int):
     """lam* for one (state, T) cell from per-(lam, scenario) breach estimates.
@@ -694,11 +720,14 @@ def stage_tables(cfg, asset):
         t = pd.DataFrame([{"σ": c["sigma"], "Merton φ": f"{c['merton']:.4f}", "DP φ values": c["phi_values"],
                            "max |dev|": f"{c['max_abs_dev']:.4f}"} for c in V["V1"]["cells"]])
         L += [f"### V1 Merton limit: pass = {V['V1']['pass']} (tolerance {V['V1']['tolerance']:.4f})", "", _md(t), ""]
+    # CE convention: excess over the cash return (%/yr); cash on the same (tuning) seed / paths as the calibration MC
+    cash_t = cash_ce(cfg, asset, "tune", cal["n_paths"], cal["lookup"]["T_days"])
+    xc = lambda ce_level, st, T: 100 * ((ce_level / cfg["problem"]["W0"]) ** (252 / T) - 1 - cash_t[(st, T)])
     if "V2" in V:
         t = pd.DataFrame([{"state": c["state"], "T": c["T_days"] // 252,
                            "breach % by λ (base)": " / ".join(pct(x) for x in c["breach_by_lam"]),
-                           "CE ann % λ=0 → λmax": f"{100 * (c['ce_by_lam'][0] / 1e8) ** (252 / c['T_days']) - 100:.2f} → "
-                                                  f"{100 * (c['ce_by_lam'][-1] / 1e8) ** (252 / c['T_days']) - 100:.2f}",
+                           "CE − cash %/yr λ=0 → λmax": f"{xc(c['ce_by_lam'][0], c['state'], c['T_days']):.2f} → "
+                                                       f"{xc(c['ce_by_lam'][-1], c['state'], c['T_days']):.2f}",
                            "rises > 2SE": c["breach_rises_beyond_2se"], "max drop pp": f"{c['max_jump_pp']:.2f}",
                            "gap share @λmax": "" if c["gap_share_largest_lam"] is None else f"{c['gap_share_largest_lam']:.0%}",
                            "n breach @λmax": c["n_breach_largest_lam"]} for c in V["V2"]["cells"]])
@@ -712,7 +741,9 @@ def stage_tables(cfg, asset):
         L += ["### V3 shape (τ ∈ {1, 5, 21, 63, 126, 252, 378, 504})", "", _md(t), ""]
     if "V4" in V:
         t = pd.DataFrame([{"state": r["state"], "T": r["T_days"] // 252, "λ": f"{r['lam']:g}",
-                           "CE ann % (120 → 239 y)": f"{100 * r['ce_ann_y1']:.3f} → {100 * r['ce_ann_y2']:.3f}",
+                           "CE − cash %/yr (120 → 239 y)":
+                               f"{100 * (r['ce_ann_y1'] - cash_t[(r['state'], r['T_days'])]):.3f} → "
+                               f"{100 * (r['ce_ann_y2'] - cash_t[(r['state'], r['T_days'])]):.3f}",
                            "ΔCE bp/yr": f"{r['d_ce_bp_per_year']:.2f}",
                            "breach % (120 → 239 y)": f"{pct(r['breach_y1'])} → {pct(r['breach_y2'])}",
                            "Δbreach pp": f"{r['d_breach_pp']:.3f}"} for r in V["V4"]["cells"]])
@@ -758,6 +789,10 @@ def stage_tables(cfg, asset):
                   "comparator's.", "", _md(t), ""]
     scp =S.rep / f"scorecard_{asset}.csv"
     if scp.exists():
+        ref = pd.read_parquet(resolve(cfg, cfg["dp"]["compare_results_dir"]) / "mc" / "summary.parquet")
+        ref = ref[(ref.asset == asset) & (ref.strategy == "cash") & (ref.scenario == "base")
+                  & (ref.state_source == "named")]
+        cash_e = {(r.state, int(r.T_days)): float(r.ce_ann) for r in ref.itertuples()}   # eval seed, paired
         sc = pd.read_csv(scp)
         sc = sc[sc.state.isin(["normal", "crisis"])]
         rows = []
@@ -768,7 +803,8 @@ def stage_tables(cfg, asset):
                 g = lambda f: getattr(r, f"{k}_{f}", float("nan"))
                 rows.append({"state": r.state, "T": r.T_days // 252, "strategy": lab,
                              "base breach %": pct(g("breach_base")), "worst-case breach %": pct(g("breach_worst")),
-                             "CE ann % (base)": f"{100 * g('ce_ann_base'):.2f}"})
+                             "CE − cash %/yr (base)":
+                                 f"{100 * (g('ce_ann_base') - cash_e[(r.state, int(r.T_days))]):.2f}"})
         L += ["### Scorecard (evaluation seed, us_mkt full-run paths)", "", _md(pd.DataFrame(rows)), ""]
     L += ["### Solve diagnostics", "", f"Solve seconds by λ: {V.get('solve_seconds')}", "",
           f"Quadrature: {V.get('quadrature')}", "",
@@ -805,20 +841,30 @@ def stage_figures(cfg, asset):
     p = S.rep / f"policy_heatmap_{asset}.png"
     fig.savefig(p, dpi=130)
     plt.close(fig)
-    # breach / CE vs lam (calibration, base and worst case)
+    figure_lambda_curves(cfg, asset)
+
+
+def figure_lambda_curves(cfg, asset):
+    """Breach and CE (excess over the cash return, %/yr) vs lam: calibration MC, base, tuning seed."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    S = Setup(cfg, asset)
+    cal = json.loads((S.rep / f"calibration_{asset}.json").read_text())
+    cash_t = cash_ce(cfg, asset, "tune", cal["n_paths"], cal["lookup"]["T_days"])
     df = pd.read_parquet(S.cache / f"calib_{asset}.parquet")
     fig, axes = plt.subplots(1, 2, figsize=(12, 4.2), constrained_layout=True)
     for (st, T), g in df[df.scenario == "base"].groupby(["state", "T_days"]):
         g = g.sort_values("knob")
         x = np.arange(len(g))
         axes[0].plot(x, g.breach * 100, marker="o", label=f"{st} T={T // 252}")
-        axes[1].plot(x, g.ce_ann * 100, marker="o", label=f"{st} T={T // 252}")
+        axes[1].plot(x, (g.ce_ann - cash_t[(st, int(T))]) * 100, marker="o", label=f"{st} T={T // 252}")
     for ax in axes:
         ax.set_xticks(range(len(S.lams)), [f"{v:g}" for v in S.lams], rotation=45)
         ax.set_xlabel("λ")
     axes[0].axhline(cfg["tune"]["target_breach"] * 100, color="r", ls="--")
     axes[0].set_ylabel("breach % (base, tuning seed)")
-    axes[1].set_ylabel("CE annualised %")
+    axes[1].set_ylabel("CE − cash (%/yr, base, tuning seed)")
     axes[0].legend(fontsize=7, ncol=2)
     fig.savefig(S.rep / f"lambda_curves_{asset}.png", dpi=130)
     plt.close(fig)

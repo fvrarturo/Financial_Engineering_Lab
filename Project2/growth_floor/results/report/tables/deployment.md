@@ -1,0 +1,13 @@
+| asset | flag_fallback_window | fallback_reasons | valid_draw_share | flag_valid_draws | flag_pit_reject | pit_rejections | chosen_strategy |
+|---|---|---|---|---|---|---|---|
+| us_mkt | False |  | 100.0% | False | False |  | dp_premrobust |
+| ind_nodur | False |  | 100.0% | False | False |  | dp_premrobust |
+| ind_durbl | False |  | 100.0% | False | False |  | dp_premrobust |
+| ind_manuf | False |  | 100.0% | False | False |  | dp_premrobust |
+| ind_enrgy | True | valid draws 0.50 < 0.7 | 50.0% | True | False |  | cppi_vol |
+| ind_hitec | False |  | 100.0% | False | False |  | dp_premrobust |
+| ind_telcm | True | persistence 0.99996 >= 0.998; valid draws 0.33 < 0.7 | 100.0% | False | True | H=252 u<0.01: too thin; H=252 u<0.02: too thin; H=252 u<0.05: too thin | cppi_vol |
+| ind_shops | True | valid draws 0.50 < 0.7 | 100.0% | False | False |  | cppi_vol |
+| ind_hlth | False |  | 100.0% | False | False |  | dp_premrobust |
+| ind_utils | True | persistence 1.00000 >= 0.998; valid draws 0.33 < 0.7 | 100.0% | False | False |  | cppi_vol |
+| ind_other | False |  | 100.0% | False | False |  | dp_premrobust |

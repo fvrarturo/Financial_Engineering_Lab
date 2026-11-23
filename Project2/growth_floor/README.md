@@ -5,6 +5,11 @@ portfolio and cash (φ ∈ [0, 1]), and targets a horizon T of 1 to 2 years. The
 with γ = 2, subject to P(W_T < $95M) ≤ 2% from every starting condition. The pipeline is a *procedure*: it
 estimates everything from an asset's own daily return history plus a risk-free series.
 
+**CE convention.** CE is quoted everywhere (report tables, app, figures) as the excess over the cash return in %/yr:
+the strategy's annualised CE minus the annualised CE of the `cash` strategy in the same cell (same asset, state, T,
+scenario and seed, so the same simulated rate paths). Column `ce_xcash`, computed by `gf.metrics.add_ce_xcash`.
+The stored `ce_ann_excess` (CE minus the starting rate r0) is not quoted.
+
 ## Setup
 
 ```bash
@@ -68,6 +73,27 @@ Stage 1 outputs:
 - `data/processed/{asset}.parquet`: asset frames with columns `r`, `rf`, `x`, `rf_ann`, all in decimal units
 - `reports/data_check/data_check.md`: human-readable report; `data_check.json`: machine-readable, with PASS/WARN/FAIL per check
 - `reports/data_check/figures/<asset>/*.png` plus `figures/rf_daily_vs_monthly.png`
+
+## Report, deck and submission (SPEC 05)
+
+**Fast path** (minutes; from the committed results, no simulation):
+
+```bash
+pip install -r requirements.txt && python -m playwright install chromium
+python scripts/07_report_numbers.py    # -> results/report/numbers.json, results/report/tables/*, results/deployment.csv
+python scripts/08_build_report.py      # -> deliverables/figures/*, report.{md,html,pdf}, deck.{html,pdf}
+python scripts/09_package.py           # -> submission/ and deliverables/growth_floor_submission.zip
+```
+
+07 runs in *extract* mode when the large files exist (`results/policies/*.npz`, `results/mc/terminal/`) and rebuilds
+`results/report/inputs/`. Otherwise it runs in *fast* mode on the committed inputs. Both give the same numbers.json.
+Every number in the report and deck comes from numbers.json or a table (map: top of DECISIONS.md). To edit wording,
+change `report/templates/report.md.j2` / `deck.html.j2` and re-run 08. Do not edit `deliverables/report.md`: it is overwritten.
+Deployment rule: `src/gf/deployment.py` (`deployment_choice(asset)`).
+
+**Full path**: stages 01–04 above, then `scripts/05_dp.py` (us_mkt DP: solve, calibrate, validate, evaluate) and
+`scripts/06_dp_premrobust.py` (solve / calibrate / evaluate / compare / report per asset; see its docstring and
+`scripts/run_dp_ind_rest.sh`), then 07–09. Run times are in DECISIONS.md.
 
 ## Layout
 

@@ -281,3 +281,5 @@ dp_premrobust:                 # same 8 solves as dp (base premium); lam* recali
   n_jobs: 6                    # cores - 2 (8-core machine)
   calib_set: [base, dgp_garch_t, fhs, param_unc, persistent, mu_low]   # tune.robust_set + mu_low (premium x 0.5)
   eval_scenarios: [base, dgp_garch_t, fhs, param_unc, persistent, mu_low, mu_zero, fat_tails, jump]
+  compare_results_dir: results_ind_extra   # industries: SPEC 03 tuned cppi/cppi_vol/obpi under scenarios the SPEC 03 plan skipped
+  compare_scenarios: [base, param_unc, persistent, mu_low, mu_zero, fat_tails]   # base = pairing check vs results/mc

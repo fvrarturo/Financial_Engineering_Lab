@@ -2764,7 +2764,7 @@
   "nu": 5.894244442439689
  },
  "V6": {
-  "source": "growth_floor_dp/../growth_floor/results/mc/summary.parquet",
+  "source": "/Users/clarysvignal/Desktop/Courses/Financial_Engineering/proj2/growth_floor_dp/../growth_floor/results/mc/summary.parquet",
   "paired_same_seed": true,
   "cells": [
    {

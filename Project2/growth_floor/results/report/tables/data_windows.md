@@ -1,0 +1,9 @@
+| estimate | data | dates | source |
+|---|---|---|---|
+| Equity model (GJR-GARCH-t), premium, σ states, PIT | us_mkt daily x = log(1+r) − log(1+rf) | 1926-07-01 to 2026-09-30 | params_us_mkt.json |
+| Equity model, industries without fallback | ind_* daily (value-weighted) | 1926-07-01 to 2026-09-30 | params_{asset}.json |
+| Equity model, fallback industries | ind_* daily (value-weighted) | 1990-01-01 to 2026-09-30 | params_{asset}.json → fallback |
+| Vasicek short-rate model, equity–rate ρ | monthly FF RF → rf_ann | 1954-01 to 2026-09 (872 months) | model_report.json → rate |
+| Cash accounting in backtests | daily FF RF | 1926-07-01 to 2026-09-30 | data/processed/{asset}.parquet |
+| PIT test (expanding refits) | us_mkt daily, quarterly starts | first fit after 10 years; refit every 252 days | results/model/pit_us_mkt.csv |
+| Historical backtest | daily r, rf; investor refit every 5 years | first refit after 10 years of data | results/backtest/summary.parquet |

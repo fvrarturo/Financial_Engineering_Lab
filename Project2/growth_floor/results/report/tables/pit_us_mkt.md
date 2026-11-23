@@ -1,0 +1,20 @@
+| group_type | group | H | n_starts | n_eff | count | freq | ci_lo | ci_hi | verdict |
+|---|---|---|---|---|---|---|---|---|---|
+| overall | all | 252 | 363 | 91 | 5 | 1.4% | 0.3% | 6.4% | consistent |
+| overall | all | 504 | 359 | 45 | 7 | 1.9% | 0.3% | 11.2% | consistent |
+| bucket | calm | 252 | 120 | 30 | 1 | 0.8% | 0.0% | 12.8% | consistent |
+| bucket | calm | 504 | 120 | 15 | 3 | 2.5% | 0.2% | 24.2% | consistent |
+| bucket | normal | 252 | 156 | 39 | 0 | 0.0% | 0.0% | 9.0% | consistent |
+| bucket | normal | 504 | 154 | 19 | 2 | 1.3% | 0.1% | 18.7% | consistent |
+| bucket | elevated | 252 | 72 | 18 | 4 | 5.6% | 1.0% | 25.8% | consistent |
+| bucket | elevated | 504 | 70 | 9 | 2 | 2.9% | 0.2% | 34.3% | consistent |
+| bucket | crisis | 252 | 15 | 4 | 0 | 0.0% | 0.0% | 50.6% | inconclusive |
+| bucket | crisis | 504 | 15 | 2 | 0 | 0.0% | 0.0% | 67.2% | inconclusive |
+| bucket_group | high | 252 | 87 | 22 | 4 | 4.6% | 0.8% | 22.0% | consistent |
+| bucket_group | high | 504 | 85 | 11 | 2 | 2.4% | 0.1% | 29.9% | consistent |
+| era | pre-1952 | 252 | 68 | 17 | 0 | 0.0% | 0.0% | 18.4% | consistent |
+| era | pre-1952 | 504 | 68 | 8 | 0 | 0.0% | 0.0% | 31.1% | consistent |
+| era | 1952-1999 | 252 | 192 | 48 | 2 | 1.0% | 0.1% | 9.2% | consistent |
+| era | 1952-1999 | 504 | 192 | 24 | 2 | 1.0% | 0.1% | 15.5% | consistent |
+| era | 2000- | 252 | 103 | 26 | 3 | 2.9% | 0.4% | 17.6% | consistent |
+| era | 2000- | 504 | 99 | 12 | 5 | 5.1% | 0.6% | 30.8% | consistent |

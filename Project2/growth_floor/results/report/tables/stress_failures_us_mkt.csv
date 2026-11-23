@@ -1,0 +1,13 @@
+strategy,scenario,state,T,breach
+Premium-robust DP,fat_tails,crisis,1,0.02636
+Premium-robust DP,fat_tails,extreme,1,0.03452
+Gap-aware CPPI,fat_tails,calm,1,0.0235
+Gap-aware CPPI,fat_tails,calm,2,0.02158
+Gap-aware CPPI,fat_tails,normal,1,0.02438
+Gap-aware CPPI,fat_tails,normal,2,0.0216
+Gap-aware CPPI,fat_tails,elevated,1,0.02502
+Gap-aware CPPI,fat_tails,elevated,2,0.02116
+Gap-aware CPPI,fat_tails,crisis,1,0.02514
+Gap-aware CPPI,fat_tails,crisis,2,0.02176
+Gap-aware CPPI,fat_tails,extreme,1,0.02688
+Gap-aware CPPI,fat_tails,extreme,2,0.02148

@@ -70,23 +70,24 @@ Nothing was tuned to a test target.
 
 ## Scorecard (base / worst case over the robust set; evaluation seed, 50k paths, paired)
 
-| state | T | strategy | base breach | worst breach | CE ann (base) |
+| state | T | strategy | base breach | worst breach | CE − cash, %/yr (base) |
 |---|---|---|---|---|---|
-| normal | 1 | **DP (λ\*)** | 0.79% | 0.88% | **5.28%** |
-| normal | 1 | OBPI-Merton (state) | 0.22% | 0.80% | 4.88% |
-| normal | 1 | CPPI gap-aware (state) | 0.26% | 1.28% | 5.08% |
-| normal | 2 | **DP (λ\*)** | 0.37% | 0.39% | **5.43%** |
-| normal | 2 | OBPI-Merton (state) | 0.32% | 0.85% | 4.78% |
-| normal | 2 | CPPI gap-aware (state) | 0.37% | 1.26% | 5.07% |
-| crisis | 1 | **DP (λ\*)** | 0.77% | 0.86% | **4.45%** |
-| crisis | 1 | OBPI-Merton (state) | 0.71% | 1.26% | 3.16% |
-| crisis | 1 | CPPI gap-aware (state) | 0.22% | 1.18% | 4.09% |
-| crisis | 2 | **DP (λ\*)** | 0.63% | 0.63% | **5.04%** |
-| crisis | 2 | OBPI-Merton (state) | 0.43% | 0.78% | 3.36% |
-| crisis | 2 | CPPI gap-aware (state) | 0.35% | 1.33% | 4.72% |
+| normal | 1 | **DP (λ\*)** | 0.79% | 0.88% | **2.38%** |
+| normal | 1 | OBPI-Merton (state) | 0.22% | 0.80% | 1.97% |
+| normal | 1 | CPPI gap-aware (state) | 0.26% | 1.28% | 2.17% |
+| normal | 2 | **DP (λ\*)** | 0.37% | 0.39% | **2.36%** |
+| normal | 2 | OBPI-Merton (state) | 0.32% | 0.85% | 1.70% |
+| normal | 2 | CPPI gap-aware (state) | 0.37% | 1.26% | 1.99% |
+| crisis | 1 | **DP (λ\*)** | 0.77% | 0.86% | **1.54%** |
+| crisis | 1 | OBPI-Merton (state) | 0.71% | 1.26% | 0.26% |
+| crisis | 1 | CPPI gap-aware (state) | 0.22% | 1.18% | 1.19% |
+| crisis | 2 | **DP (λ\*)** | 0.63% | 0.63% | **1.97%** |
+| crisis | 2 | OBPI-Merton (state) | 0.43% | 0.78% | 0.28% |
+| crisis | 2 | CPPI gap-aware (state) | 0.35% | 1.33% | 1.65% |
 
 Uniform-tuned variants and the calm/elevated/extreme states are in `scorecard_us_mkt.csv` and `tables_us_mkt.md`.
 Worst case = max over the robust set (base, dgp_garch_t, fhs, param_unc, persistent).
+CE is quoted as excess over the cash return (annualised CE minus the cash strategy's, same cell and paths; DECISIONS 2026-11-22). CE differences (bp/yr) are unchanged by this convention.
 
 The DP's worst-case breach (0.39–1.12% over all states and T) sits close to its base breach. The comparators' base
 breach is lower, but their worst case is wider (gap-aware CPPI up to 1.33%, OBPI-Merton state up to 1.47%). Across all 10

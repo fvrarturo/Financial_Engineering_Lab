@@ -1,0 +1,1 @@
+scripts/07_report_numbers.py → results/report/tables/performance_dp_us_mkt.csv (from results_dp_mu/mc/summary.parquet + terminal subsamples (5k paths per cell))

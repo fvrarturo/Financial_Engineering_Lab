@@ -1,0 +1,228 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Growth with a floor: committee deck</title>
+<style>
+:root { --ink:#1b1f24; --muted:#5b6470; --accent:#b3346d; --rule:#d8dde3; --bg:#ffffff; }
+@page { size: 13.333in 7.5in; margin: 0; }
+html, body { margin:0; padding:0; background: var(--bg); color: var(--ink);
+             font-family: "Helvetica Neue", Arial, sans-serif; }
+.slide { width: 13.333in; height: 7.5in; box-sizing: border-box; padding: 0.55in 0.7in 0.45in; position: relative;
+         page-break-after: always; break-after: page; overflow: hidden; display: flex; flex-direction: column; }
+.slide:last-child { page-break-after: auto; break-after: auto; }
+h1 { font-size: 27px; line-height: 1.22; margin: 0 0 16px; font-weight: 700; letter-spacing: -0.01em; max-width: 11.6in; }
+.kicker { color: var(--accent); font-weight: 700; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase;
+          margin-bottom: 8px; }
+.row { display: flex; gap: 0.4in; flex: 1; min-height: 0; }
+.col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.wide { flex: 1.65; }
+img { max-width: 100%; max-height: 4.9in; object-fit: contain; }
+.big { font-size: 46px; font-weight: 750; color: var(--accent); line-height: 1; }
+.bigl { font-size: 14px; color: var(--muted); margin: 4px 0 18px; }
+ul { margin: 0; padding-left: 20px; font-size: 18px; line-height: 1.4; }
+li { margin: 0 0 10px; }
+table { border-collapse: collapse; font-size: 12.5px; width: 100%; font-variant-numeric: tabular-nums; }
+th { text-align: left; border-bottom: 1.5px solid var(--ink); padding: 4px 6px; }
+td { border-bottom: 1px solid var(--rule); padding: 3.5px 6px; }
+.src { position: absolute; bottom: 0.22in; left: 0.7in; right: 0.7in; font-size: 10px; color: var(--muted); }
+.num { position: absolute; bottom: 0.22in; right: 0.7in; font-size: 10px; color: var(--muted); }
+.note { font-size: 13px; color: var(--muted); margin-top: 8px; }
+.title { justify-content: center; }
+.title h1 { font-size: 46px; max-width: 10in; }
+.title .sub { font-size: 22px; color: var(--muted); margin: 10px 0 36px; max-width: 10in; }
+.box { border-left: 4px solid var(--accent); background: #fbf3f7; padding: 12px 16px; font-size: 16px; margin-top: 12px; }
+</style></head><body>
+
+<section class="slide title">
+  <div class="kicker">Investment committee · MIT 15.456</div>
+  <h1>Growing the money without breaking the floor</h1>
+  <div class="sub">A daily equity/cash procedure for $100M over 1–2 years
+    with P(W<sub>T</sub> &lt; $95M) ≤ 2% from any starting state</div>
+  <div style="font-size:18px">Team 27: Arturo Favara, Clarys Vignal, Nick Bernardini</div>
+  <div style="font-size:16px;color:var(--muted);margin-top:8px">23 November 2026</div>
+</section>
+
+<section class="slide">
+  <div class="kicker">1 · Recommendation</div>
+  <h1>Premium-robust DP: +13 to +63 bp/yr over the best simple rule, with worst-case floor breach ≤ 0.95% in every starting state.</h1>
+  <div class="row">
+    <div class="col" style="flex:0.55">
+      <div class="big">+1.1% to +2.5%</div>
+      <div class="bigl">CE − cash per year (annualised), us_mkt, by starting state and horizon</div>
+      <div class="big">≤ 0.95%</div>
+      <div class="bigl">worst-case breach over 5 models in each of 10 state × horizon cells (limit 2%)</div>
+      <div class="box">Fallback rule: assets with weak model diagnostics get gap-aware CPPI (4 of 11: enrgy, telcm, shops, utils).</div>
+    </div>
+    <div class="col wide">
+      <table>
+<thead>
+<tr>
+<th>start (σ0)</th>
+<th>T</th>
+<th>Deployed</th>
+<th>Gap-aware CPPI</th>
+<th>OBPI</th>
+<th>No-floor Merton</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>calm (8%)</td>
+<td>1</td>
+<td>0.14 / 0.22 / 0.34 · <strong>+2.48</strong></td>
+<td>0.25 / 1.30 / 0.30 · <strong>+2.35</strong></td>
+<td>0.22 / 0.80 / 0.27 · <strong>+2.08</strong></td>
+<td>12.87 / 15.55 / 19.76 · <strong>+2.10</strong></td>
+</tr>
+<tr>
+<td>calm (8%)</td>
+<td>2</td>
+<td>0.36 / 0.38 / 1.16 · <strong>+2.45</strong></td>
+<td>0.38 / 1.28 / 0.43 · <strong>+2.05</strong></td>
+<td>0.32 / 0.85 / 0.35 · <strong>+1.72</strong></td>
+<td>12.91 / 17.05 / 22.24 · <strong>+1.94</strong></td>
+</tr>
+<tr>
+<td>normal (12%)</td>
+<td>1</td>
+<td>0.79 / 0.88 / 1.75 · <strong>+2.38</strong></td>
+<td>0.26 / 1.28 / 0.31 · <strong>+2.17</strong></td>
+<td>0.22 / 0.80 / 0.26 · <strong>+1.97</strong></td>
+<td>14.02 / 17.64 / 20.88 · <strong>+1.89</strong></td>
+</tr>
+<tr>
+<td>normal (12%)</td>
+<td>2</td>
+<td>0.37 / 0.39 / 1.12 · <strong>+2.36</strong></td>
+<td>0.37 / 1.26 / 0.42 · <strong>+1.99</strong></td>
+<td>0.32 / 0.85 / 0.34 · <strong>+1.70</strong></td>
+<td>13.49 / 18.05 / 22.84 · <strong>+1.83</strong></td>
+</tr>
+<tr>
+<td>elevated (25%)</td>
+<td>1</td>
+<td>0.35 / 0.43 / 0.76 · <strong>+1.94</strong></td>
+<td>0.22 / 1.18 / 0.27 · <strong>+1.74</strong></td>
+<td>0.21 / 0.55 / 0.23 · <strong>+0.98</strong></td>
+<td>18.75 / 24.44 / 25.36 · <strong>+0.70</strong></td>
+</tr>
+<tr>
+<td>elevated (25%)</td>
+<td>2</td>
+<td>0.27 / 0.31 / 0.83 · <strong>+2.14</strong></td>
+<td>0.36 / 1.27 / 0.38 · <strong>+1.85</strong></td>
+<td>0.71 / 1.47 / 1.06 · <strong>+0.93</strong></td>
+<td>16.32 / 22.43 / 25.52 · <strong>+1.20</strong></td>
+</tr>
+<tr>
+<td>crisis (51%)</td>
+<td>1</td>
+<td>0.77 / 0.86 / 1.50 · <strong>+1.54</strong></td>
+<td>0.22 / 1.18 / 0.24 · <strong>+1.19</strong></td>
+<td>0.71 / 1.26 / 0.77 · <strong>+0.26</strong></td>
+<td>28.00 / 36.16 / 33.34 · <strong>-4.15</strong></td>
+</tr>
+<tr>
+<td>crisis (51%)</td>
+<td>2</td>
+<td>0.63 / 0.63 / 1.65 · <strong>+1.97</strong></td>
+<td>0.35 / 1.33 / 0.38 · <strong>+1.65</strong></td>
+<td>0.43 / 0.78 / 0.55 · <strong>+0.28</strong></td>
+<td>23.46 / 32.01 / 31.78 · <strong>-1.35</strong></td>
+</tr>
+<tr>
+<td>extreme (125%)</td>
+<td>1</td>
+<td>0.91 / 0.95 / 1.58 · <strong>+1.06</strong></td>
+<td>0.23 / 1.17 / 0.23 · <strong>+0.43</strong></td>
+<td>0.00 / 0.00 / 0.00 · <strong>+0.05</strong></td>
+<td>43.04 / 52.46 / 46.30 · <strong>-23.93</strong></td>
+</tr>
+<tr>
+<td>extreme (125%)</td>
+<td>2</td>
+<td>0.36 / 0.36 / 0.89 · <strong>+1.68</strong></td>
+<td>0.32 / 1.27 / 0.36 · <strong>+1.34</strong></td>
+<td>0.04 / 0.05 / 0.04 · <strong>+0.05</strong></td>
+<td>38.73 / 48.78 / 44.20 · <strong>-12.38</strong></td>
+</tr>
+</tbody>
+</table>
+      <div class="note">Each cell: base breach / worst-case breach / breach with zero premium (%) · <b>CE − cash (%/yr)</b>.</div>
+    </div>
+  </div>
+  <div class="src">Source: scripts/07_report_numbers.py → results/report/numbers.json (headline), tables/exec_compact_us_mkt.csv</div>
+</section>
+
+<section class="slide">
+  <div class="kicker">2 · How it works</div>
+  <h1>The DP holds equity only when one bad day cannot reach the floor: it de-risks near the floor and in high volatility.</h1>
+  <div class="row">
+    <div class="col wide"><img src="figures/policy.png"></div>
+    <div class="col" style="flex:0.75">
+      <ul>
+        <li><b>Near the floor</b> the equity weight falls as the cushion thins.</li>
+        <li><b>In high volatility</b> it cuts equity even with a large cushion (φ = 1.00 → 0.07 at y = 1.5, normal → crisis σ).</li>
+        <li><b>Robust to a halved premium</b>: the breach penalty λ is calibrated against μ × 0.5 as well as five models.</li>
+        <li>The floor is discounted at a <b>conservative rate</b> (the 0.1% quantile of cash growth), which covers reinvestment risk.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="src">Source: scripts/07_report_numbers.py → results/report/inputs/policy_us_mkt.npz (results/policies/dp_premrobust_us_mkt.npz)</div>
+</section>
+
+<section class="slide">
+  <div class="kicker">3 · The floor holds from every start</div>
+  <h1>Worst-case breach stays below 0.95% from calm to the 1987-crash state, at both horizons.</h1>
+  <div class="row">
+    <div class="col wide"><img src="figures/heatmap.png"></div>
+    <div class="col" style="flex:0.6">
+      <ul>
+        <li>Worst case = maximum over the base model, GARCH-t, filtered historical simulation, parameter draws and persistent vol.</li>
+        <li>50,000 paths per cell on a seed independent of tuning: SE at 2% ≈ 0.06 pp.</li>
+        <li>Gap-aware CPPI: ≤ 1.33%; OBPI: ≤ 1.47%.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="src">Source: scripts/07_report_numbers.py → results/report/tables/all_cells.csv</div>
+</section>
+
+<section class="slide">
+  <div class="kicker">4 · Stress tests and other assets</div>
+  <h1>Held-out stresses pass except fat tails (ν = 3) from crisis starts; on other assets the deployed strategy's worst case stays ≤ 1.80%.</h1>
+  <div class="row">
+    <div class="col wide"><img src="figures/stress.png"></div>
+    <div class="col" style="flex:0.62">
+      <ul style="font-size:16px">
+        <li>Zero premium: DP max 1.75%. Fat tails: DP fails in 2 cells, gap-aware CPPI in 10.</li>
+        <li>11 assets, each with its own estimates. The rule sends enrgy, telcm, shops, utils to CPPI.</li>
+<li>The DP's 1 industry miss (enrgy normal T=2, mu_zero 2.24%): 1 caught by the rule.</li>      </ul>
+    </div>
+  </div>
+  <div class="src">Source: scripts/07_report_numbers.py → results/report/tables/stress_us_mkt.csv, industries.csv, results/deployment.csv</div>
+</section>
+
+<section class="slide">
+  <div class="kicker">5 · Limits and advice</div>
+  <h1>Use it on long, clean histories with daily trading; switch to the CPPI fallback when the premium or the model is in doubt.</h1>
+  <div class="row">
+    <div class="col">
+      <div style="font-weight:700;margin-bottom:8px">Do not rely on it when…</div>
+      <ul style="font-size:17px">
+        <li>crashes beyond the data are plausible (ν = 3: up to 3.45% from extreme starts, T = 1);</li>
+        <li>the premium may be near zero (margin only 0.25 pp in the tightest cell);</li>
+        <li>the asset's diagnostics are flagged, or its history is short or broken;</li>
+        <li>rates may move sharply: the DP holds the rate fixed (15% of T = 2 breaches are rate-driven);</li>
+        <li>daily trading can fail: halts, overnight gaps, real costs.</li>
+      </ul>
+    </div>
+    <div class="col">
+      <div style="font-weight:700;margin-bottom:8px">Our advice</div>
+      <ul style="font-size:17px">
+        <li>Re-estimate at least annually; run the deployment diagnostics before every switch-on.</li>
+        <li>Add a horizon-matched zero-coupon bond: it removes reinvestment risk and the conservative discount.</li>
+        <li>Next: the rate as a DP state, a DP backtest with re-solves, DP validation on every asset.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="src">Source: scripts/07_report_numbers.py → results/report/numbers.json (stress, decomp_dp)</div>
+</section>
+</body></html>

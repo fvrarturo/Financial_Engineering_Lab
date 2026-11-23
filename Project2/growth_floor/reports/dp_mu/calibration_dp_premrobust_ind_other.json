@@ -1,0 +1,367 @@
+{
+ "strategy": "dp_premrobust",
+ "asset": "ind_other",
+ "calib_set": [
+  "base",
+  "dgp_garch_t",
+  "fhs",
+  "param_unc",
+  "persistent",
+  "mu_low"
+ ],
+ "target": 0.0125,
+ "n_paths": 10000,
+ "seed": 422281017734016562,
+ "lam_grid": [
+  0.0,
+  0.0001,
+  0.000192,
+  0.000368,
+  0.000707,
+  0.00136,
+  0.00261,
+  0.005
+ ],
+ "generated": "2026-11-22T16:55:42",
+ "cells": [
+  {
+   "state": "calm",
+   "sigma0": 0.0894086149837612,
+   "T_days": 252,
+   "lam_star": 0.000707,
+   "achievable_on_grid": true,
+   "worst_by_lam": [
+    0.1869,
+    0.0865,
+    0.0566,
+    0.0251,
+    0.0064,
+    0.0022,
+    0.0017,
+    0.0013
+   ],
+   "binding_scenario_by_lam": [
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "dgp_garch_t",
+    "dgp_garch_t",
+    "dgp_garch_t"
+   ],
+   "noisy_rises": 0,
+   "grid_idx": 4,
+   "idx": 4,
+   "rule": "grid"
+  },
+  {
+   "state": "calm",
+   "sigma0": 0.0894086149837612,
+   "T_days": 504,
+   "lam_star": 0.00261,
+   "achievable_on_grid": true,
+   "worst_by_lam": [
+    0.1783,
+    0.1066,
+    0.0856,
+    0.0606,
+    0.0346,
+    0.0133,
+    0.0059,
+    0.0044
+   ],
+   "binding_scenario_by_lam": [
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low"
+   ],
+   "noisy_rises": 0,
+   "grid_idx": 6,
+   "idx": 6,
+   "rule": "grid"
+  },
+  {
+   "state": "normal",
+   "sigma0": 0.1308292562160634,
+   "T_days": 252,
+   "lam_star": 0.000707,
+   "achievable_on_grid": true,
+   "worst_by_lam": [
+    0.1938,
+    0.0902,
+    0.058,
+    0.025,
+    0.0054,
+    0.0022,
+    0.0016,
+    0.0011
+   ],
+   "binding_scenario_by_lam": [
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "dgp_garch_t",
+    "dgp_garch_t",
+    "dgp_garch_t"
+   ],
+   "noisy_rises": 0,
+   "grid_idx": 4,
+   "idx": 4,
+   "rule": "grid"
+  },
+  {
+   "state": "normal",
+   "sigma0": 0.1308292562160634,
+   "T_days": 504,
+   "lam_star": 0.00136,
+   "achievable_on_grid": true,
+   "worst_by_lam": [
+    0.1817,
+    0.111,
+    0.0881,
+    0.0622,
+    0.0346,
+    0.0124,
+    0.0055,
+    0.0041
+   ],
+   "binding_scenario_by_lam": [
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low"
+   ],
+   "noisy_rises": 0,
+   "grid_idx": 5,
+   "idx": 5,
+   "rule": "grid"
+  },
+  {
+   "state": "elevated",
+   "sigma0": 0.2725047599850576,
+   "T_days": 252,
+   "lam_star": 0.000707,
+   "achievable_on_grid": true,
+   "worst_by_lam": [
+    0.1865,
+    0.0751,
+    0.0426,
+    0.0149,
+    0.0028,
+    0.0018,
+    0.001,
+    0.0006
+   ],
+   "binding_scenario_by_lam": [
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "dgp_garch_t",
+    "dgp_garch_t",
+    "dgp_garch_t",
+    "dgp_garch_t"
+   ],
+   "noisy_rises": 0,
+   "grid_idx": 4,
+   "idx": 4,
+   "rule": "grid"
+  },
+  {
+   "state": "elevated",
+   "sigma0": 0.2725047599850576,
+   "T_days": 504,
+   "lam_star": 0.00136,
+   "achievable_on_grid": true,
+   "worst_by_lam": [
+    0.1811,
+    0.1053,
+    0.0819,
+    0.0566,
+    0.0289,
+    0.0092,
+    0.0047,
+    0.0033
+   ],
+   "binding_scenario_by_lam": [
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low"
+   ],
+   "noisy_rises": 0,
+   "grid_idx": 5,
+   "idx": 5,
+   "rule": "grid"
+  },
+  {
+   "state": "crisis",
+   "sigma0": 0.6350268797384924,
+   "T_days": 252,
+   "lam_star": 0.000368,
+   "achievable_on_grid": true,
+   "worst_by_lam": [
+    0.1608,
+    0.0456,
+    0.0192,
+    0.0042,
+    0.0018,
+    0.001,
+    0.0007,
+    0.0005
+   ],
+   "binding_scenario_by_lam": [
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "dgp_garch_t",
+    "dgp_garch_t",
+    "dgp_garch_t",
+    "fhs"
+   ],
+   "noisy_rises": 0,
+   "grid_idx": 3,
+   "idx": 3,
+   "rule": "grid"
+  },
+  {
+   "state": "crisis",
+   "sigma0": 0.6350268797384924,
+   "T_days": 504,
+   "lam_star": 0.00136,
+   "achievable_on_grid": true,
+   "worst_by_lam": [
+    0.1739,
+    0.0987,
+    0.0728,
+    0.0486,
+    0.0208,
+    0.0066,
+    0.0028,
+    0.0023
+   ],
+   "binding_scenario_by_lam": [
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low"
+   ],
+   "noisy_rises": 0,
+   "grid_idx": 5,
+   "idx": 5,
+   "rule": "grid"
+  },
+  {
+   "state": "extreme",
+   "sigma0": 1.3014459059242804,
+   "T_days": 252,
+   "lam_star": 0.000192,
+   "achievable_on_grid": true,
+   "worst_by_lam": [
+    0.1282,
+    0.0247,
+    0.0066,
+    0.0021,
+    0.0012,
+    0.0006,
+    0.0003,
+    0.0003
+   ],
+   "binding_scenario_by_lam": [
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "dgp_garch_t",
+    "dgp_garch_t",
+    "dgp_garch_t",
+    "dgp_garch_t",
+    "dgp_garch_t"
+   ],
+   "noisy_rises": 0,
+   "grid_idx": 2,
+   "idx": 2,
+   "rule": "grid"
+  },
+  {
+   "state": "extreme",
+   "sigma0": 1.3014459059242804,
+   "T_days": 504,
+   "lam_star": 0.00136,
+   "achievable_on_grid": true,
+   "worst_by_lam": [
+    0.1658,
+    0.0875,
+    0.0623,
+    0.0376,
+    0.0151,
+    0.0046,
+    0.002,
+    0.002
+   ],
+   "binding_scenario_by_lam": [
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low",
+    "mu_low"
+   ],
+   "noisy_rises": 0,
+   "grid_idx": 5,
+   "idx": 5,
+   "rule": "grid"
+  }
+ ],
+ "lookup": {
+  "sigma": [
+   0.0894086149837612,
+   0.1308292562160634,
+   0.2725047599850576,
+   0.6350268797384924,
+   1.3014459059242804
+  ],
+  "T_days": [
+   252,
+   504
+  ],
+  "idx": [
+   [
+    4,
+    4,
+    4,
+    3,
+    2
+   ],
+   [
+    6,
+    5,
+    5,
+    5,
+    5
+   ]
+  ]
+ }
+}
